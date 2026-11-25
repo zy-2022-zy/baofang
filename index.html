@@ -1,0 +1,3836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>需求管理系统 · v0.7 (报备实名 + 三方)</title>
+<style>
+  /* 业务类型大 tab */
+  .biz-tab {
+    padding: 8px 16px; border: 2px solid #cbd5e0; border-radius: 6px;
+    background: white; cursor: pointer; font-size: 13px; font-weight: 500;
+    color: #4a5568; transition: all 0.15s;
+  }
+  .biz-tab:hover { border-color: #ed8936; color: #7b341e; }
+  .biz-tab.active { background: #ed8936; color: white; border-color: #ed8936; box-shadow: 0 2px 4px rgba(237,137,54,0.3); }
+  /* 业务类型标签 (详情/列表展示) */
+  .biz-tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; }
+  .biz-tag[data-biz-type="sms"] { background:#ebf8ff; color:#2c5282; }
+  .biz-tag[data-biz-type="5g"] { background:#fef5e7; color:#7b341e; }
+  .biz-tag[data-biz-type="video"] { background:#f0e7ff; color:#553c9a; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f7fa;
+    color: #2d3748;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  /* ========== 顶部导航 ========== */
+  .navbar {
+    background: linear-gradient(135deg, #1a4d8f 0%, #2c5282 100%);
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .navbar h1 { font-size: 18px; font-weight: 600; }
+  .navbar .user-info { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .navbar select {
+    padding: 4px 8px; border-radius: 4px; border: none; font-size: 13px;
+    background: white; color: #2d3748;
+  }
+  .tag {
+    background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag.admin { background: #f6ad55; }
+
+  /* ========== 容器与 Tabs ========== */
+  .container { max-width: 1500px; margin: 20px auto; padding: 0 20px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #e2e8f0; }
+  .tab {
+    background: none; border: none; padding: 10px 18px; cursor: pointer;
+    font-size: 14px; color: #4a5568; border-bottom: 3px solid transparent;
+    margin-bottom: -2px; transition: all 0.15s;
+  }
+  .tab:hover { color: #2c5282; }
+  .tab.active { color: #2c5282; border-bottom-color: #2c5282; font-weight: 600; }
+
+  /* ========== 卡片 ========== */
+  .card {
+    background: white; border-radius: 8px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; margin-bottom: 12px; color: #2d3748; }
+
+  /* ========== 提示框 ========== */
+  .alert {
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 12px;
+    font-size: 13px; border-left: 4px solid;
+  }
+  .alert-info { background: #ebf8ff; border-color: #3182ce; color: #2c5282; }
+  .alert-success { background: #f0fff4; border-color: #38a169; color: #22543d; }
+  .alert-warning { background: #fffaf0; border-color: #ed8936; color: #7b341e; }
+  .alert-error { background: #fff5f5; border-color: #e53e3e; color: #742a2a; }
+
+  /* ========== 表单 ========== */
+  .form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .form-row label { font-weight: 500; color: #4a5568; min-width: 80px; }
+  .form-row input, .form-row select {
+    padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 4px;
+    font-size: 13px; background: white; color: #2d3748;
+  }
+  .form-row input:focus, .form-row select:focus {
+    outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49,130,206,0.1);
+  }
+
+  /* ========== 13 列需求行表格 ========== */
+  .rows-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+  .rows-table th {
+    background: #edf2f7; padding: 8px 6px; text-align: left;
+    font-weight: 600; color: #4a5568; border-bottom: 2px solid #cbd5e0;
+    white-space: nowrap; font-size: 12px;
+  }
+  .rows-table th .hint { font-size: 10px; font-weight: normal; color: #a0aec0; }
+  .rows-table td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  .rows-table input, .rows-table select {
+    width: 100%; padding: 4px 6px; border: 1px solid #cbd5e0;
+    border-radius: 3px; font-size: 12px; background: white;
+  }
+  .rows-table input:focus, .rows-table select:focus {
+    outline: none; border-color: #3182ce;
+  }
+  .rows-table input[type=number] { width: 60px; }
+  .rows-table input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+  .port-preview { font-size: 10px; color: #718096; padding: 2px 4px; min-height: 14px; }
+  .port-preview.error { color: #e53e3e; font-weight: 500; }
+
+  /* ========== 按钮 ========== */
+  .btn {
+    padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;
+    font-size: 13px; font-weight: 500; transition: all 0.15s;
+  }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-primary { background: #3182ce; color: white; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+  .btn-secondary { background: #e2e8f0; color: #2d3748; }
+  .btn-secondary:hover { background: #cbd5e0; }
+  .btn-danger { background: #e53e3e; color: white; }
+  .btn-danger:hover { background: #c53030; }
+  .btn-danger:disabled { background: #a0aec0; cursor: not-allowed; }
+  .btn-success { background: #38a169; color: white; }
+  .btn-success:hover { background: #2f855a; }
+  .btn-icon { padding: 3px 8px; font-size: 11px; }
+
+  /* ========== 列表表 ========== */
+  .list-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .list-table th { background: #edf2f7; padding: 8px; text-align: left; font-weight: 600; color: #4a5568; border-bottom: 2px solid #cbd5e0; }
+  .list-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+  .list-table tr:hover { background: #f7fafc; }
+  .list-table tr.cancelled { background: #f7fafc; opacity: 0.5; }
+  .list-table tr.cancelled:hover { background: #edf2f7; }
+  .list-table code { background: #edf2f7; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+
+  /* ========== 状态标签 ========== */
+  .tag-pending { background: #fef5e7; color: #7b341e; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .tag-warn { background: #fed7d7; color: #742a2a; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .tag-ok { background: #c6f6d5; color: #22543d; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+
+  /* ========== 模态框 ========== */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); display: none;
+    justify-content: center; align-items: center; z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white; border-radius: 8px; padding: 24px;
+    max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  .modal h3 { margin-bottom: 12px; color: #2d3748; font-size: 16px; }
+  .modal ul { margin: 12px 0; padding-left: 20px; }
+  .modal ul li { margin-bottom: 6px; font-size: 13px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
+  /* ========== Loading / Empty ========== */
+  .loading, .empty { text-align: center; padding: 40px; color: #a0aec0; font-size: 13px; }
+
+  /* ========== Admin 配置块 ========== */
+  .config-block {
+    border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px;
+    margin-bottom: 12px; background: #fafbfc;
+  }
+  .config-block h3 { font-size: 14px; margin-bottom: 10px; color: #2d3748; }
+  .config-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .config-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: white; border: 1px solid #cbd5e0; border-radius: 14px;
+    padding: 3px 10px; font-size: 12px;
+  }
+  .config-item.disabled { opacity: 0.4; }
+  .config-item button {
+    border: none; background: none; cursor: pointer; color: #e53e3e;
+    font-size: 12px; padding: 0; margin-left: 2px;
+  }
+  .config-item .toggle-btn { color: #3182ce; }
+  .config-add {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .config-add input, .config-add select {
+    padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 3px; font-size: 12px;
+  }
+  .config-add input { width: 100px; }
+
+  /* 提交结果信息块 */
+  .result-meta { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; }
+  .result-meta .label { color: #718096; }
+  .result-meta .value { color: #2d3748; font-weight: 500; }
+  /* v0.18 5G/视信 字段显隐控制 */
+  body.biz-sms .col-5g-video { display: none; }
+  body.biz-5g .col-sms-only,
+  body.biz-video .col-sms-only { display: none; }
+  /* 5G/视信 状态下，隐藏完整子端口的“模式选择”和“尾号要求”，只留纯数字 */
+  body.biz-5g .f-complete-sub-mode,
+  body.biz-video .f-complete-sub-mode { display: none; }
+  body.biz-5g .f-sub-port-prefix,
+  body.biz-video .f-sub-port-prefix { display: none; }
+</style>
+</head>
+<body>
+<!-- xlsx 库：本地化（避免 CDN 不稳定/被墙） -->
+<script src="/lib/xlsx.full.min.js"
+  onerror="window.__xlsxFailed=true"></script>
+
+<nav class="navbar">
+  <h1>📋 需求管理系统 · v0.24 <span style="font-size:12px;opacity:0.7;">(报备实名 + 三方 + 端口分配)</span></h1>
+  <div class="user-info">
+    <span>当前用户：</span>
+    <select id="userSelect" onchange="switchUser()">
+      <option value="">加载中...</option>
+    </select>
+    <span class="tag" id="deptTag">-</span>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('submit')">📝 提需求</button>
+    <button class="tab" onclick="switchTab('batches')">📦 我的批次</button>
+    <button class="tab" id="toolsTab" onclick="switchTab('tools')">🛠️ 我的工具</button>
+    <button class="tab" id="adminTab" style="display:none;" onclick="switchTab('admin')">⚙️ 业务配置</button>
+  </div>
+
+  <!-- ====== 提需求页 ====== -->
+  <div id="submitPage">
+    <!-- v0.6 业务类型大 tab -->
+    <div class="card" style="background:linear-gradient(135deg, #fef5e7 0%, #fffaf0 100%);border-left:4px solid #ed8936;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-weight:600;color:#7b341e;">📌 业务类型：</span>
+        <button class="biz-tab active" data-biz="sms" onclick="switchBizType('sms')">📩 短信</button>
+        <button class="biz-tab" data-biz="5g" onclick="switchBizType('5g')">📨 5G阅信</button>
+        <button class="biz-tab" data-biz="video" onclick="switchBizType('video')">🎬 视频短信</button>
+        <button class="biz-tab" data-biz="eco" onclick="switchBizType('eco')">🤝 三方报备</button>
+        <span style="font-size:12px;color:#7b341e;margin-left:auto;">⚠️ 一次提单只支持一种类型。切换会清空表单。</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📝 提需求 · 报备实名</h2>
+      <div class="alert alert-info">
+        💡 提示：<b>当前业务类型：<span class="biz-tag" id="currentBizTypeLabel" data-biz-type="sms">📩 短信</span></b>。13 列字段按顺序填写。报备主端口支持单值或多值（<code>3228</code> / <code>3228、1802</code> / <code>3228，1802，4336</code>），多值自动拆成 N 条子需求。完整子端口：纯数字 / "无尾号要求（申请新通道）" / "有尾号要求（手填任意数字字符串）"。
+      </div>
+
+      <div class="form-row">
+        <label>批次名称：</label>
+        <input type="text" id="batchName" placeholder="（可选）单条提交留空；批量提交建议命名，如'陈朗新增签名0413'" style="flex:1; min-width:300px;">
+        <label>业务线：</label>
+        <select id="bizLine" disabled>
+          <option value="realname">实名报备</option>
+        </select>
+      </div>
+
+      <div id="smsFieldsSection">
+      <h3 style="margin-top:16px;font-size:14px;color:#4a5568;">需求行 · 13 字段（点击 ➕ 加行）</h3>
+      <div style="overflow-x:auto;">
+      <table class="rows-table">
+        <thead>
+          <tr>
+            <th style="width:4%;background:#f7fafc;color:#718096;font-size:11px;" title="表单行号（1 开始，与 Excel 行号无关）">行号</th>
+            <th style="width:9%;">签名<span class="hint">手填</span></th>
+            <th style="width:33%;">完整子端口<span class="hint">3 种值</span></th>
+            <th style="width:5%;">企业账号<span class="hint">手填</span></th>
+            <th style="width:6%;">企业名称<span class="hint">手填</span></th>
+            <th style="width:3%;">所属销售<span class="hint">手填</span></th>
+            <th style="width:5%;">运营商</th>
+            <th style="width:6%;">报备主端口<span class="hint">4位多值</span></th>
+            <th class="col-sms-only" style="width:4%;">子端口数<span class="hint" style="color:#e53e3e;" title="默认 1。多引流 = 短位+长位 总数量">总数</span></th>
+            <th class="col-sms-only" style="width:4%;">拓位数</th>
+            <th style="width:5%;">业务大类</th>
+            <th style="width:5%;">业务细类</th>
+            <th style="width:4%;">金融类</th>
+            <th class="col-5g-video" style="width:8%;" title="v0.18 5G/视信：自动从 channel_list 匹配主端口取">报备人</th>
+            <th style="width:6%;">备注</th>
+            <th style="width:3%;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="rowsBody"></tbody>
+      </table>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="addRow()">➕ 加一行</button>
+        <button class="btn btn-secondary btn-sm" onclick="addRows(3)">➕➕➕ 加 3 行</button>
+        <button class="btn btn-secondary btn-sm" onclick="addRows(5)">➕×5 加 5 行</button>
+        <span style="margin-left:8px;color:#a0aec0;">|</span>
+        <label class="btn btn-primary btn-sm" style="cursor:pointer;display:inline-block;margin:0;">
+          📥 导入 Excel
+          <input type="file" id="excelImport" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(this)">
+        </label>
+        <button class="btn btn-secondary btn-sm" onclick="downloadExcelTemplate()">📝 下载模板</button>
+        <span id="importHint" style="font-size:12px;color:#718096;"></span>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="btn btn-primary" id="submitBtn" onclick="handleSubmitByBizType()">🚀 提交需求</button>
+        <button class="btn btn-secondary" onclick="resetForm()">🔄 重置</button>
+      </div>
+      </div><!-- /smsFieldsSection -->
+
+      <!-- ====== v0.18 三方报备字段区（平移到提需求页，默认隐藏） ====== -->
+      <div id="ecoFieldsSection" style="display:none;">
+        <div class="card" style="background:linear-gradient(135deg, #fef5e7 0%, #fffaf0 100%);border-left:4px solid #ed8936;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-weight:600;color:#7b341e;">🤝 三方/生态报备</span>
+            <span style="font-size:12px;color:#7b341e;">不填 13 字段 — 只填通道 ID + 关键信息，提交即可</span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>📡 通道信息（填通道 ID 自动带出）</h2>
+          <div class="alert alert-info">
+            💡 输入下方 472 条三方通道里的"通道ID"（如 4866），自动带出来源/资源类型/通道名/网关账号/运营商/供应商 6 字段
+          </div>
+          <div class="form-row">
+            <label>通道ID：</label>
+            <input type="text" id="eco_channel_id_input" placeholder="例：4866 / 25092201" style="padding:6px 10px;border:1px solid #cbd5e0;border-radius:4px;width:200px;">
+            <button class="btn btn-primary btn-sm" onclick="fetchEcoChannel()">🔍 查找并填充</button>
+            <span id="eco_fetch_msg" style="font-size:12px;color:#718096;"></span>
+          </div>
+          <div class="form-row">
+            <label>来源：</label><input type="text" id="eco_source" readonly style="background:#f7fafc;width:200px;">
+            <label style="margin-left:20px;">资源类型：</label><input type="text" id="eco_resource_type" readonly style="background:#f7fafc;width:120px;">
+            <label style="margin-left:20px;">运营商：</label><input type="text" id="eco_carrier" readonly style="background:#f7fafc;width:80px;">
+          </div>
+          <div class="form-row">
+            <label>通道名：</label><input type="text" id="eco_channel_name" readonly style="background:#f7fafc;width:100%;">
+          </div>
+          <div class="form-row">
+            <label>网关账号：</label><input type="text" id="eco_gateway" readonly style="background:#f7fafc;width:200px;">
+            <label style="margin-left:20px;">供应商：</label><input type="text" id="eco_supplier" readonly style="background:#f7fafc;width:200px;">
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>📋 需求行（精简字段）</h2>
+          <div class="alert alert-info">
+            💡 三方报备不填 业务大类/业务细类/是否金融/子端口数/拓位数/完整子端口
+          </div>
+          <table class="rows-table">
+            <thead>
+              <tr>
+                <th style="width:15%;">签名 *</th>
+                <th style="width:18%;">尾号要求 *</th>
+                <th style="width:12%;">企业账号</th>
+                <th style="width:15%;">企业名称</th>
+                <th style="width:10%;">所属销售</th>
+                <th style="width:25%;">备注</th>
+                <th style="width:5%;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="ecoRowsBody"></tbody>
+          </table>
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="addEcoRow()">➕ 加一行</button>
+            <button class="btn btn-secondary btn-sm" onclick="addEcoRows(3)">➕➕➕ 加 3 行</button>
+            <button class="btn btn-secondary btn-sm" onclick="resetEcoForm()">🔄 重置</button>
+          </div>
+
+          <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn btn-primary" id="ecoSubmitBtn" onclick="submitEco()">🚀 提交三方报备</button>
+          </div>
+
+          <div id="ecoResult" style="margin-top:20px;"></div>
+        </div>
+      </div><!-- /ecoFieldsSection -->
+
+      <div id="submitResult" style="margin-top:20px;"></div>
+    </div>
+  </div>
+
+  <!-- ====== 批次列表页 ====== -->
+  <div id="batchesPage" style="display:none;">
+    <div class="card">
+      <h2>📦 批次中心</h2>
+      <div class="tabs" style="margin-bottom:12px;">
+        <button class="tab active" id="tabBatchList" onclick="switchBatchesView('list')">📦 批次列表</button>
+        <button class="tab" id="tabBatchAll" onclick="switchBatchesView('all')">📋 全部明细</button>
+      </div>
+      <div id="batchListFilterBar" style="display:none;background:#f7fafc;padding:10px;border-radius:6px;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="bl_flt_batch" placeholder="批次号" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:130px;">
+          <input type="text" id="bl_flt_submitter" placeholder="申请人" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:100px;">
+          <input type="date" id="bl_flt_date_from" title="申请时间起" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+          <span style="font-size:12px;color:#718096;">至</span>
+          <input type="date" id="bl_flt_date_to" title="申请时间止" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+          <select id="bl_flt_biz_type" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+            <option value="">全部业务类型</option>
+            <option value="sms">短信</option>
+            <option value="5g">5G</option>
+            <option value="video">视信</option>
+          </select>
+          <select id="bl_flt_status" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+            <option value="">全部报备结果</option>
+            <option value="pending">待报备</option>
+            <option value="in_progress">报备中</option>
+            <option value="success">成功</option>
+            <option value="failed">失败</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="applyBatchListFilters()">🔍 应用筛选</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetBatchListFilters()">🔄 重置</button>
+          <span id="bl_filterCount" style="margin-left:auto;font-size:12px;color:#4a5568;"></span>
+        </div>
+      </div>
+      <div id="filterBar" style="display:none;background:#f7fafc;padding:10px;border-radius:6px;margin-bottom:12px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="flt_batch" placeholder="批次号" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:130px;">
+          <input type="text" id="flt_signature" placeholder="签名" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:120px;">
+          <input type="text" id="flt_submitter" placeholder="申请人" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:100px;">
+          <select id="flt_carrier" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+            <option value="">全部运营商</option>
+            <option value="移动">移动</option>
+            <option value="联通">联通</option>
+            <option value="电信">电信</option>
+          </select>
+          <select id="flt_status" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+            <option value="">全部报备结果</option>
+            <option value="pending">待报备</option>
+            <option value="in_progress">报备中</option>
+            <option value="success">成功</option>
+            <option value="failed">失败</option>
+          </select>
+          <input type="text" id="flt_region" placeholder="区域" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;width:100px;">
+          <select id="flt_warn" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+            <option value="">全部警告</option>
+            <option value="1">仅警告</option>
+            <option value="0">无警告</option>
+          </select>
+          <input type="date" id="flt_date_from" title="申请时间起" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+          <span style="font-size:12px;color:#718096;">至</span>
+          <input type="date" id="flt_date_to" title="申请时间止" style="padding:5px 8px;border:1px solid #cbd5e0;border-radius:4px;font-size:12px;">
+          <button class="btn btn-primary btn-sm" onclick="applyFilters()">🔍 应用筛选</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetFilters()">🔄 重置</button>
+          <span style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+            <span id="filterCount" style="font-size:12px;color:#4a5568;"></span>
+            <button id="batchStartBtn" class="btn btn-mini" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;" onclick="batchReport('start')" title="选中行批量标为报备中">▶️ 批量处理</button>
+            <button id="batchSuccessBtn" class="btn btn-mini" style="background:#f0fff4;color:#22543d;border:1px solid #9ae6b4;" onclick="batchReport('success')" title="选中行批量标为成功">✅ 批量成功</button>
+            <button id="batchRejectBtn" class="btn btn-mini" style="background:#fff5f5;color:#c53030;border:1px solid #feb2b2;" onclick="batchReport('reject')" title="选中行批量驳回">❌ 批量驳回</button>
+            <button class="btn btn-success btn-sm" onclick="exportSelectedRows()">📥 导出选中行</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportFilteredDemands()">📋 导出全部</button>
+          </span>
+        </div>
+      </div>
+      <div class="alert alert-info" id="batchListHint">加载中...</div>
+      <div id="batchListContent" class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- ====== 我的工具页 ====== -->
+  <div id="toolsPage" style="display:none;">
+    <div class="card">
+      <h2>🛠️ 我的工具 <span class="tag" style="background:#fef5e7;color:#7b341e;">报备部 / 管理员</span></h2>
+      <div class="tabs" style="margin-bottom:16px;">
+        <button class="tab active" onclick="switchToolSubTab('portAlloc')">📋 端口分配</button>
+        <button class="tab" onclick="switchToolSubTab('reportImport')">📥 报备结果导入</button>
+      </div>
+
+      <!-- 端口分配子页 -->
+      <div id="toolSubPortAlloc">
+        <p style="color:#4a5568;font-size:13px;">端口分配工具：上传报备人员填好的需求批次 Excel → 按规则拆分行 → 确认后回传到对应批次。</p>
+        <div id="portAllocatorArea">
+          <div style="background:#fffaf0;border:1px solid #fbd38d;padding:14px;border-radius:8px;margin-bottom:14px;">
+            <h3 style="margin:0 0 8px;color:#7b341e;">📋 端口分配工具流程</h3>
+            <ol style="margin:0;padding-left:20px;color:#4a5568;font-size:13px;line-height:1.8;">
+              <li>报备人员从“📦 我的批次 → 批次列表”多选批次 → 导出 Excel</li>
+              <li>报备人员在下载的 Excel 中填充“端口预占位”列</li>
+              <li>上传填好的 Excel → 工具按规则拆行 → 预览拆行结果</li>
+              <li>确认无误后，点“回传完整子端口” → 原行变为“占位行”，新建行存实际子端口，状态→“报备中”</li>
+            </ol>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label for="portAllocFile" style="display:inline-block;padding:8px 16px;background:#3182ce;color:white;border-radius:6px;cursor:pointer;font-size:13px;">📤 选择填好的 Excel 文件</label>
+            <input type="file" id="portAllocFile" accept=".xlsx" style="position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);" onchange="onPortAllocFile(this)">
+            <span id="portAllocFileName" style="margin-left:10px;font-size:12px;color:#4a5568;"></span>
+          </div>
+          <div id="portAllocPreview" style="display:none;">
+            <h3 style="margin:14px 0 8px;color:#2d3748;">📊 拆行预览（原始 <span id="portAllocOrigCount">0</span> 行 → 展开后 <span id="portAllocExpCount">0</span> 行）</h3>
+            <div id="portAllocPreviewTable" style="overflow-x:auto;max-height:50vh;overflow-y:auto;"></div>
+            <div style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+              <button class="btn" style="background:#38a169;color:white;" onclick="confirmPortAlloc()">✅ 确认回传完整子端口</button>
+              <button class="btn" style="background:#3182ce;color:white;" onclick="downloadPortAllocExcel()">📥 下载拆分后表格</button>
+              <button class="btn" style="background:#e53e3e;color:white;" onclick="cancelPortAlloc()">❌ 取消</button>
+              <span id="portAllocStatus" style="font-size:12px;color:#4a5568;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 报备结果导入子页 (v0.9) -->
+      <div id="toolSubReportImport" style="display:none;">
+        <div class="alert alert-info">
+          💡 报备结果批量导入 · 上传运营商下发的「子端口生效明细」，工具自动按 (主端口+签名+运营商) 匹配 demand，写入 report_status。
+          匹配策略：① 精确(port_id/complete_sub_port) → ② 末位(有尾号要求) → ③ 兜底(port_alloc_inserted=1 优先)。未匹配项输出明细让你下载。
+          权限：报备部 + 管理员可用。
+        </div>
+        <div class="alert" style="background:#fffbea;border:1px solid #f6e05e;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#744210;">
+          ⚠️ <b>列字段兼容性</b>：<b>关键 4 列必填</b>（子端口、运营商、签名、报备结果），其他列可选。
+          你的 Excel 可以有更多列（报备时间、备注、销售、企账号等）也可以更少，工具会<b>按列名关键字自动识别</b>，识别不准的可在导入前下拉微调。
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <label class="btn btn-primary btn-sm" style="cursor:pointer;display:inline-block;">
+            📥 上传运营商 Excel
+            <input type="file" id="reportImportFile" accept=".xlsx,.xls" style="display:none;" onchange="onReportImportFile(this)">
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="downloadReportImportTemplate()">📝 下载示例模板</button>
+          <span style="margin-left:auto;font-size:12px;color:#718096;" id="reportImportHint">未上传</span>
+        </div>
+        <div id="reportImportContent">
+          <div class="empty" style="padding:40px 20px;color:#a0aec0;">未上传文件。点击「上传运营商 Excel」开始。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Admin 配置页 ====== -->
+  <div id="adminPage" style="display:none;">
+    <div class="card">
+      <h2>⚙️ 管理员配置中心 <span class="tag admin">E_admin</span></h2>
+      <div class="tabs" style="margin-bottom:16px;">
+        <button class="tab active" onclick="switchAdminSubTab('biz')">业务大类/细类</button>
+        <button class="tab" onclick="switchAdminSubTab('channels')">通道基础信息</button>
+        <button class="tab" onclick="switchAdminSubTab('channelsEco')">三方通道资源</button>
+        <button class="tab" onclick="switchAdminSubTab('rejections')">不合规签名</button>
+      </div>
+
+      <!-- 业务配置子页 -->
+      <div id="adminSubBiz">
+        <div class="alert alert-info">
+          💡 业务大类（category）默认 55 / 77，业务细类（sub_category）默认 1 / 2 / 4。可新增、删除。删除时若有 demand 在用会被拒绝。
+        </div>
+        <div id="configContent">加载中...</div>
+      </div>
+
+      <!-- 通道基础信息子页 -->
+      <div id="adminSubChannels" style="display:none;">
+        <div class="alert alert-info">
+          💡 通道基础信息 · 来自全盘通道清单。140 条记录。admin 可增/改/删。
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="channelSearch" placeholder="搜索：端口/名称/报备人" style="padding:5px 10px;border:1px solid #cbd5e0;border-radius:4px;font-size:13px;width:240px;">
+          <button class="btn btn-secondary btn-sm" onclick="loadChannels()">🔍 搜索</button>
+          <button class="btn btn-primary btn-sm" onclick="showChannelForm()">➕ 新增通道</button>
+          <span style="margin-left:auto;font-size:12px;color:#718096;" id="channelCount">-</span>
+        </div>
+        <div id="channelsContent">加载中...</div>
+      </div>
+
+      <!-- 三方通道资源子页 (v0.11) -->
+      <div id="adminSubChannelsEco" style="display:none;">
+        <div class="alert alert-info">
+          💡 三方通道资源 · 来自生态/三方合作方。供“🤝 三方报备” lookup。admin 可增/改/删。
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="channelEcoSearch" placeholder="搜索：通道ID/名称/供应商/网关账号" style="padding:5px 10px;border:1px solid #cbd5e0;border-radius:4px;font-size:13px;width:300px;">
+          <button class="btn btn-secondary btn-sm" onclick="loadChannelsEco()">🔍 搜索</button>
+          <button class="btn btn-primary btn-sm" onclick="showChannelEcoForm()">➕ 新增通道</button>
+          <span style="margin-left:auto;font-size:12px;color:#718096;" id="channelEcoCount">-</span>
+        </div>
+        <div id="channelsEcoContent">加载中...</div>
+      </div>
+
+      <!-- 不合规签名子页 -->
+      <div id="adminSubRejections" style="display:none;">
+        <div class="alert alert-info">
+          💡 不合规签名 · 用于警告检测。只读+Excel 导入。如需修改，下载当前 → 编辑 → 上传全量覆盖。
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="rejectionSearch" placeholder="搜索：签名/驳回原因/区域" style="padding:5px 10px;border:1px solid #cbd5e0;border-radius:4px;font-size:13px;width:240px;">
+          <button class="btn btn-secondary btn-sm" onclick="loadRejections()">🔍 搜索</button>
+          <label class="btn btn-primary btn-sm" style="cursor:pointer;display:inline-block;">
+            📥 上传 Excel 覆盖
+            <input type="file" id="rejectionUpload" accept=".xlsx,.xls" style="display:none;" onchange="uploadRejections(this)">
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="downloadRejectionTemplate()">📝 下载模板</button>
+          <span style="margin-left:auto;font-size:12px;color:#718096;" id="rejectionCount">-</span>
+        </div>
+        <div id="rejectionsContent">加载中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 警告模态框 ====== -->
+<div class="modal-overlay" id="warningModal">
+  <div class="modal">
+    <h3>⚠️ 警告：检测到子需求匹配历史驳回记录</h3>
+    <p style="font-size:13px;color:#4a5568;">系统检测到以下子需求可能存在问题，请确认：</p>
+    <ul id="warningList"></ul>
+    <div class="alert alert-warning" style="margin-top:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="forceSubmitChk">
+        <span><b>我已了解上述风险，强制提交</b>（记录将留痕，可在审计时追溯）</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeWarningModal()">❌ 取消</button>
+      <button class="btn btn-danger" id="forceSubmitBtn" disabled onclick="doForceSubmit()">🚨 强制提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 批次详情模态框 ====== -->
+<div class="modal-overlay" id="batchDetailModal" onclick="if(event.target===this)closeBatchDetail()">
+  <div class="modal" style="max-width:1200px;width:95%;">
+    <h3>📦 批次详情</h3>
+    <div id="batchDetailBody">加载中...</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeBatchDetail()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 全局 ==========
+const API = '/api';
+let currentUser = null;
+let currentBizType = 'sms';  // v0.6: sms/5g/video
+let pendingSubDemands = null;
+let pendingBatchNo = null;
+let pendingWarnings = null;
+let pendingRows = null;        // 待提交的最新行数据
+let bizConfig = {category: [], sub_category: []};  // 业务配置缓存
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadUsers();
+  await loadBizConfig();
+  if (currentUser) renderSubmitPage();
+});
+
+// ========== 业务类型切换（v0.6 大 tab） ==========
+function switchBizType(t) {
+  if (t === currentBizType) return;
+  // 切 tab 前检查表单是否有内容
+  const tbody = document.getElementById('rowsBody');
+  if (tbody && tbody.rows.length > 0) {
+    let hasContent = false;
+    for (const tr of tbody.rows) {
+      const sig = tr.querySelector('.f-signature')?.value.trim();
+      const port = tr.querySelector('.f-port')?.value.trim();
+      if (sig || port) { hasContent = true; break; }
+    }
+    if (hasContent && !confirm('切换业务类型会清空当前表单，确认？')) return;
+  }
+  currentBizType = t;
+  document.querySelectorAll('.biz-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.biz === t);
+  });
+  // 更新提示
+  const lbl = document.getElementById('currentBizTypeLabel');
+  if (lbl) {
+    const icon = t === 'sms' ? '📩' : t === '5g' ? '📨' : t === 'video' ? '🎬' : '🤝';
+    lbl.textContent = `${icon} ${BIZ_LABEL[t]}`;
+    lbl.dataset.bizType = t;
+  }
+  // v0.18: 三方 vs 普短/5G/视信 切换表单区
+  const isEco = (t === 'eco');
+  const smsSection = document.getElementById('smsFieldsSection');
+  const ecoSection = document.getElementById('ecoFieldsSection');
+  if (smsSection) smsSection.style.display = isEco ? 'none' : '';
+  if (ecoSection) ecoSection.style.display = isEco ? '' : 'none';
+  // v0.18: 5G/视信 字段显隐控制（CSS body class）
+  document.body.classList.remove('biz-sms', 'biz-5g', 'biz-video', 'biz-eco');
+  document.body.classList.add('biz-' + t);
+  // v0.18: 5G/视信 强制 mode=纯数字 + 报备主端口只读
+  if (t === '5g' || t === 'video') {
+    document.querySelectorAll('#rowsBody tr').forEach(tr => {
+      const mode = tr.querySelector('.f-complete-sub-mode');
+      if (mode) { mode.value = '纯数字'; mode.disabled = true; }
+      const port = tr.querySelector('.f-port');
+      if (port) { port.readOnly = true; port.style.background = '#f7fafc'; }
+      const subCount = tr.querySelector('.f-sub-count');
+      if (subCount) { subCount.value = 1; subCount.disabled = true; }
+      const extCount = tr.querySelector('.f-ext-count');
+      if (extCount) { extCount.value = 0; extCount.disabled = true; }
+    });
+  } else {
+    document.querySelectorAll('#rowsBody tr').forEach(tr => {
+      const mode = tr.querySelector('.f-complete-sub-mode');
+      if (mode) mode.disabled = false;
+      const port = tr.querySelector('.f-port');
+      if (port) { port.readOnly = false; port.style.background = 'white'; }
+      const subCount = tr.querySelector('.f-sub-count');
+      if (subCount) subCount.disabled = false;
+      const extCount = tr.querySelector('.f-ext-count');
+      if (extCount) extCount.disabled = false;
+    });
+  }
+  // 清空表单
+  resetForm();
+}
+
+const BIZ_LABEL = {sms: '短信', '5g': '5G阅信', video: '视频短信', eco: '三方报备'};
+
+function renderBizTag(t) {
+  const icon = t === 'sms' ? '📩' : t === '5g' ? '📨' : '🎬';
+  const label = BIZ_LABEL[t] || t;
+  return `<span class="biz-tag" data-biz-type="${t}">${icon} ${label}</span>`;
+}
+
+// ========== 用户切换 ==========
+async function loadUsers() {
+  const sel = document.getElementById('userSelect');
+  const deptTag = document.getElementById('deptTag');
+  console.log('[loadUsers] 开始');
+  try {
+    console.log('[loadUsers] 发 fetch...');
+    const ctl = new AbortController();
+    const tid = setTimeout(() => { console.warn('[loadUsers] 8s 超时'); ctl.abort(); }, 8000);
+    let r;
+    try {
+      r = await fetch(`${API}/users`, {signal: ctl.signal});
+    } finally {
+      clearTimeout(tid);
+    }
+    console.log('[loadUsers] fetch 返回 status=', r.status);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const users = await r.json();
+    console.log('[loadUsers] 拿到', Array.isArray(users) ? users.length : '非数组', '个用户');
+    if (!Array.isArray(users) || !users.length) throw new Error('用户列表为空');
+    const opts = users.map(u => `<option value="${u.id}">${u.id}-${u.name} (${u.dept})</option>`).join('');
+    console.log('[loadUsers] 生成 HTML 长度=', opts.length, '前 50=', opts.substring(0, 50));
+    sel.innerHTML = opts;
+    currentUser = users[0];
+    sel.value = currentUser.id;
+    console.log('[loadUsers] currentUser=', currentUser.id, currentUser.name);
+    updateDeptTag();
+    await checkAdmin();
+    console.log('[loadUsers] ✓ 全部完成');
+  } catch (e) {
+    console.error('[loadUsers] ✗ 失败：', e.name, e.message);
+    sel.innerHTML = '<option value="">❌ 加载失败: ' + e.message + '</option>';
+    if (deptTag) { deptTag.textContent = '后端连不上'; deptTag.className = 'tag admin'; }
+  }
+}
+async function switchUser() {
+  const id = parseInt(document.getElementById('userSelect').value);
+  const r = await fetch(`${API}/users/me?user_id=${id}`);
+  currentUser = await r.json();
+  updateDeptTag();
+  await checkAdmin();
+  if (document.getElementById('batchesPage').style.display !== 'none') loadBatches();
+}
+function updateDeptTag() {
+  const t = document.getElementById('deptTag');
+  t.textContent = `${currentUser.dept} / ${currentUser.role}`;
+  t.className = currentUser.role === 'E_admin' ? 'tag admin' : 'tag';
+}
+async function checkAdmin() {
+  try {
+    const r = await fetch(`${API}/admin/check?user_id=${currentUser.id}`);
+    const data = await r.json();
+    document.getElementById('adminTab').style.display = data.is_admin ? 'inline-block' : 'none';
+    // v0.9: 我的工具 tab 仅实名报备部门 + 管理员可见
+    const showTools = (currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin'));
+    document.getElementById('toolsTab').style.display = showTools ? 'inline-block' : 'none';
+  } catch (e) {
+    document.getElementById('adminTab').style.display = 'none';
+    document.getElementById('toolsTab').style.display = 'none';
+  }
+}
+
+// ========== 业务配置加载 ==========
+async function loadBizConfig() {
+  try {
+    const r = await fetch(`${API}/business-config`);
+    const all = await r.json();
+    bizConfig = {category: [], sub_category: []};
+    for (const c of all) {
+      if (c.enabled) {
+        if (!bizConfig[c.config_type]) bizConfig[c.config_type] = [];
+        bizConfig[c.config_type].push(c);
+      }
+    }
+  } catch (e) {
+    console.error('loadBizConfig failed', e);
+  }
+}
+function bizOptions(type) {
+  const arr = bizConfig[type] || [];
+  return arr.map(c => `<option value="${c.value}">${c.value}</option>`).join('');
+}
+
+// ========== Tab 切换 ==========
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['submit', 'batches', 'tools', 'admin'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.getElementById('submitPage').style.display = name === 'submit' ? 'block' : 'none';
+  document.getElementById('batchesPage').style.display = name === 'batches' ? 'block' : 'none';
+  document.getElementById('toolsPage').style.display = name === 'tools' ? 'block' : 'none';
+  document.getElementById('adminPage').style.display = name === 'admin' ? 'block' : 'none';
+  if (name === 'batches') loadBatches();
+  if (name === 'admin') loadAdminPage();
+  if (name === 'tools') renderToolsPage();
+}
+
+// ========== 提需求页 ==========
+function renderSubmitPage() {
+  document.getElementById('rowsBody').innerHTML = '';
+  addRow();
+}
+
+function renderEcoPage() {
+  document.getElementById('ecoRowsBody').innerHTML = '';
+  addEcoRow();
+}
+
+function addRow() {
+  addRows(1);
+}
+
+function addRows(n) {
+  const tbody = document.getElementById('rowsBody');
+  for (let i = 0; i < n; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="f-row-num" style="text-align:center;color:#718096;font-size:11px;background:#f7fafc;"></td>
+      <td><input type="text" class="f-signature" placeholder="如：信用飞"></td>
+      <td>
+        <div style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;">
+          <select class="f-complete-sub-mode" onchange="onCompleteSubModeChange(this)" style="width:28%;">
+            <option value="纯数字" title="纯数字（如 106931234567）">纯数字</option>
+            <option value="无尾号要求（申请新通道）" title="无尾号要求（申请新通道）">无尾号</option>
+            <option value="有尾号要求（手填任意数字字符串）" title="有尾号要求（手填任意数字字符串）">有尾号</option>
+          </select>
+          <input type="text" class="f-complete-sub-value" placeholder="填具体数字" oninput="onCompleteSubValueChange(this)" style="width:34%;">
+          <select class="f-sub-port-prefix" style="width:36%;font-size:11px;display:none;" title="v0.8: 拓位要求，有尾号+拓位>1时必选">
+            <option value="">—</option>
+            <option value="before">尾号前</option>
+            <option value="after">尾号后</option>
+          </select>
+        </div>
+      </td>
+      <td><input type="text" class="f-acct" placeholder="账号"></td>
+      <td><input type="text" class="f-company" placeholder="公司名"></td>
+      <td><input type="text" class="f-sales" placeholder="销售"></td>
+      <td>
+        <select class="f-carrier" required>
+          <option value="">请选择运营商</option>
+          <option value="移动">移动</option>
+          <option value="联通">联通</option>
+          <option value="电信">电信</option>
+        </select>
+      </td>
+      <td>
+        <input type="text" class="f-port" placeholder="3228 或 3228、1802" oninput="updatePortPreview(this)">
+        <div class="port-preview"></div>
+      </td>
+      <td class="col-sms-only"><input type="number" class="f-sub-count" value="1" min="1" max="99" title="默认 1。多个（短位+长位）总数量时填总数量"></td>
+      <td class="col-sms-only"><input type="number" class="f-ext-count" value="0" min="0" max="99" oninput="toggleTailExtend(this.closest('tr'))"></td>
+      <td>
+        <select class="f-biz-cat" required>
+          <option value="" disabled selected>请选择</option>
+          ${bizOptions('category')}
+        </select>
+      </td>
+      <td>
+        <select class="f-biz-sub" required>
+          <option value="" disabled selected>请选择</option>
+          ${bizOptions('sub_category')}
+        </select>
+      </td>
+      <td style="text-align:center;"><input type="checkbox" class="f-finance"></td>
+      <td class="col-5g-video"><input type="text" class="f-report-handler" readonly style="background:#f7fafc;" placeholder="自动从 channel_list 匹配" title="v0.18 5G/视信：自动从 channel_list 匹配主端口取"></td>
+      <td><input type="text" class="f-remark" placeholder="备注"></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="removeRow(this)">🗑️</button></td>
+    `;
+    tbody.appendChild(tr);
+    toggleTailExtend(tr);
+  }
+  renumberFormRows();
+}
+
+function toggleTailExtend(tr) {
+  const mode = tr.querySelector('.f-complete-sub-mode').value;
+  const subSelect = tr.querySelector('.f-sub-port-prefix');
+  if (!subSelect) return;
+  // 修复: 选「有尾号要求」即显示 3 号位「尾号前/后」（不再要求 extCount>1）
+  // 5G/视信 状态下由 CSS 强制隐藏（display:none），不受这里影响
+  const shouldShow = mode.indexOf('有尾号要求') === 0;
+  subSelect.style.display = shouldShow ? '' : 'none';
+  if (!shouldShow) subSelect.value = '';
+}
+
+// 表单行序号刷新：1,2,3... 顺序号，每次 add/remove 后调用
+function renumberFormRows() {
+  const tbody = document.getElementById('rowsBody');
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll('tr');
+  rows.forEach((tr, i) => {
+    const numCell = tr.querySelector('.f-row-num');
+    if (numCell) {
+      numCell.textContent = i + 1;
+      numCell.style.color = '#718096';
+      numCell.style.fontSize = '11px';
+      numCell.style.background = '#f7fafc';
+      numCell.style.textAlign = 'center';
+    }
+  });
+}
+
+function removeRow(btn) {
+  const tbody = document.getElementById('rowsBody');
+  if (tbody.rows.length > 1) {
+    tbody.removeChild(btn.closest('tr'));
+    renumberFormRows();
+  }
+  else { alert('至少保留 1 行'); }
+}
+
+function onCompleteSubModeChange(sel) {
+  const tr = sel.closest('tr');
+  const valueInput = tr.querySelector('.f-complete-sub-value');
+  const portInput = tr.querySelector('.f-port');
+  if (sel.value === '纯数字') {
+    valueInput.disabled = false;
+    valueInput.placeholder = '填具体数字（如 106931234567）';
+    valueInput.style.background = 'white';
+    // 主端口可能自动填，先不禁用让 onInput 控制
+    portInput.disabled = false;
+    portInput.value = '';
+    portInput.placeholder = '填 4 位数字，或上方填≥8位后自动识别';
+  } else if (sel.value === '有尾号要求（手填任意数字字符串）') {
+    valueInput.disabled = false;
+    valueInput.placeholder = '填具体尾号值（如 5678）';
+    valueInput.style.background = 'white';
+    portInput.disabled = false;
+    portInput.placeholder = '填 4 位数字';
+  } else {
+    // 无尾号要求
+    valueInput.disabled = true;
+    valueInput.value = '';
+    valueInput.placeholder = '（模式已固定值）';
+    valueInput.style.background = '#f7fafc';
+    portInput.disabled = false;
+    portInput.placeholder = '填 4 位数字';
+  }
+  // 触发一次重算
+  onCompleteSubValueChange(valueInput);
+  // 拓位要求下拉框显隐
+  toggleTailExtend(sel.closest('tr'));
+}
+
+// ========== 三方报备 JS (v0.7) ==========
+let ecoCurrentChannel = null;
+
+async function fetchEcoChannel() {
+  const cid = document.getElementById('eco_channel_id_input').value.trim();
+  const msg = document.getElementById('eco_fetch_msg');
+  if (!cid) { msg.textContent = '❌ 请输入通道ID'; return; }
+  msg.textContent = '⏳ 查找中...';
+  try {
+    const r = await fetch(`${API}/channels-eco?channel_id=${encodeURIComponent(cid)}`);
+    const data = await r.json();
+    if (data.error) { msg.textContent = '❌ ' + data.error; ecoCurrentChannel = null; return; }
+    if (!data || data.length === 0) { msg.textContent = '❌ 没找到通道ID: ' + cid; ecoCurrentChannel = null; return; }
+    const ch = data[0];
+    ecoCurrentChannel = ch;
+    document.getElementById('eco_source').value = ch.source || '';
+    document.getElementById('eco_resource_type').value = ch.resource_type || '';
+    document.getElementById('eco_carrier').value = ch.carrier || '';
+    document.getElementById('eco_channel_name').value = ch.channel_name || '';
+    document.getElementById('eco_gateway').value = ch.gateway_account || '';
+    document.getElementById('eco_supplier').value = ch.supplier || '';
+    msg.textContent = `✅ 找到：${ch.channel_name}`;
+  } catch (e) {
+    msg.textContent = '❌ ' + e.message;
+  }
+}
+
+function addEcoRow() {
+  const tbody = document.getElementById('ecoRowsBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="eco-sig" placeholder="如：信用飞"></td>
+    <td>
+      <select class="eco-csp-mode">
+        <option value="">请选择</option>
+        <option value="无尾号要求（申请新通道）">无尾号</option>
+        <option value="有尾号要求">有尾号</option>
+      </select>
+      <input type="text" class="eco-csp-value" placeholder="（有尾号时填具体值）" style="margin-top:2px;">
+    </td>
+    <td><input type="text" class="eco-acct" placeholder="账号"></td>
+    <td><input type="text" class="eco-co" placeholder="公司名"></td>
+    <td><input type="text" class="eco-sales" placeholder="销售"></td>
+    <td><input type="text" class="eco-remark" placeholder="备注"></td>
+    <td><button class="btn btn-secondary btn-sm" onclick="removeEcoRow(this)">🗑️</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('.eco-csp-mode').addEventListener('change', (e) => {
+    const val = tr.querySelector('.eco-csp-value');
+    if (e.target.value === '有尾号要求') {
+      val.disabled = false;
+      val.placeholder = '填具体数字（如 5678）';
+    } else {
+      val.disabled = true;
+      val.value = '';
+      val.placeholder = '（有尾号时填具体值）';
+    }
+  });
+}
+
+function addEcoRows(n) {
+  for (let i = 0; i < n; i++) addEcoRow();
+}
+
+function removeEcoRow(btn) {
+  const tbody = document.getElementById('ecoRowsBody');
+  if (tbody.rows.length > 1) tbody.removeChild(btn.closest('tr'));
+  else alert('至少保留 1 行');
+}
+
+function resetEcoForm() {
+  document.getElementById('ecoRowsBody').innerHTML = '';
+  document.getElementById('eco_channel_id_input').value = '';
+  document.getElementById('eco_source').value = '';
+  document.getElementById('eco_resource_type').value = '';
+  document.getElementById('eco_carrier').value = '';
+  document.getElementById('eco_channel_name').value = '';
+  document.getElementById('eco_gateway').value = '';
+  document.getElementById('eco_supplier').value = '';
+  document.getElementById('eco_fetch_msg').textContent = '';
+  ecoCurrentChannel = null;
+  addEcoRow();
+}
+
+async function submitEco() {
+  if (!ecoCurrentChannel) {
+    alert('请先填通道ID并查找');
+    return;
+  }
+  const trs = document.querySelectorAll('#ecoRowsBody tr');
+  const rows = [];
+  for (const tr of trs) {
+    const sig = tr.querySelector('.eco-sig').value.trim();
+    if (!sig) continue;
+    const mode = tr.querySelector('.eco-csp-mode').value;
+    const cspVal = tr.querySelector('.eco-csp-value').value.trim();
+    let csp = '';
+    if (mode === '有尾号要求') csp = cspVal ? `有尾号要求:${cspVal}` : '';
+    else csp = mode;
+    if (!csp) { alert(`签名「${sig}」未选尾号要求`); return; }
+    rows.push({
+      signature: sig,
+      complete_sub_port: csp,
+      company_account: tr.querySelector('.eco-acct').value.trim(),
+      company_name: tr.querySelector('.eco-co').value.trim(),
+      sales_owner: tr.querySelector('.eco-sales').value.trim(),
+      channel_id: ecoCurrentChannel.channel_id,
+      channel_eco_id: ecoCurrentChannel.id,
+      channel_supplier: ecoCurrentChannel.supplier,
+      remark: tr.querySelector('.eco-remark').value.trim()
+    });
+  }
+  if (!rows.length) { alert('请至少填 1 行有效数据'); return; }
+  const btn = document.getElementById('ecoSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 提交中...';
+  try {
+    const r = await fetch(`${API}/demands`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        submitter_id: currentUser.id,
+        biz_source: 'eco',
+        biz_type: 'sms',
+        rows
+      })
+    });
+    const data = await r.json();
+    if (data.batch_no) {
+      document.getElementById('ecoResult').innerHTML = `
+        <div class="alert alert-success">
+          <h3 style="margin-bottom:8px;">✅ 三方报备提交成功</h3>
+          <div class="result-meta">
+            <div class="label">批次号：</div><div class="value"><code>${data.batch_no}</code></div>
+            <div class="label">通道ID：</div><div class="value">${ecoCurrentChannel.channel_id}</div>
+            <div class="label">供应商：</div><div class="value">${ecoCurrentChannel.supplier}</div>
+            <div class="label">子需求数：</div><div class="value">${data.sub_demand_count} 条</div>
+          </div>
+        </div>`;
+      resetEcoForm();
+    } else {
+      alert('提交失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 提交三方报备';
+  }
+}
+
+function onCompleteSubValueChange(input) {
+  const tr = input.closest('tr');
+  const mode = tr.querySelector('.f-complete-sub-mode').value;
+  const value = input.value.trim();
+  const portInput = tr.querySelector('.f-port');
+  const handlerInput = tr.querySelector('.f-report-handler');
+  if (mode === '纯数字' && value.length >= 8 && /^\d+$/.test(value)) {
+    // 第 5-8 位 = 主端口
+    const derived = value.substring(4, 8);
+    if (/^\d{4}$/.test(derived)) {
+      portInput.value = derived;
+      portInput.readOnly = true;
+      portInput.style.background = '#e6fffa';
+      portInput.title = '由完整子端口第 5-8 位自动识别';
+      // v0.18: 5G/视信 需查 channel_list 取报备人
+      if (handlerInput && (currentBizType === '5g' || currentBizType === 'video')) {
+        const carrier = tr.querySelector('.f-carrier').value;
+        lookupReportHandler(derived, carrier, handlerInput);
+      }
+    }
+  } else {
+    portInput.readOnly = false;
+    portInput.style.background = 'white';
+    portInput.title = '';
+  }
+  updatePortPreview(portInput);
+}
+
+// v0.18: 报备人自动查 channel_list
+async function lookupReportHandler(portId, carrier, handlerInput) {
+  if (!portId || !carrier || !/^\d{4}$/.test(portId)) {
+    handlerInput.value = '';
+    handlerInput.title = '需主端口 + 运营商才能查报备人';
+    return;
+  }
+  handlerInput.title = '⏳ 查 channel_list 中...';
+  try {
+    const r = await fetch(`${API}/channels?port_id=${portId}&carrier=${encodeURIComponent(carrier)}`);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const handler = data[0].report_handler || '';
+      handlerInput.value = handler;
+      if (handler) {
+        handlerInput.title = `✅ 来自 channel_list：${handler}`;
+      } else {
+        handlerInput.title = '⚠️ 未匹配到报备人（通道在但 report_handler 为空）';
+      }
+    } else {
+      handlerInput.value = '';
+      handlerInput.title = '⚠️ channel_list 查不到该主端口，需 baobei 受理时手填';
+    }
+  } catch (e) {
+    handlerInput.title = '❌ 查 channel_list 失败：' + e.message;
+  }
+}
+
+function updatePortPreview(input) {
+  const tr = input.closest('tr');
+  const preview = tr.querySelector('.port-preview');
+  const v = input.value.trim();
+  if (!v) { preview.textContent = ''; preview.className = 'port-preview'; return; }
+  // 检查格式：4 位数字，支持顿号/全角逗号/英文逗号/空格分隔
+  const normalized = v.replace(/[，,\s\n\r]+/g, '、');
+  const parts = normalized.split('、').filter(p => p.trim());
+  const allValid = parts.length > 0 && parts.every(p => /^\d{4}$/.test(p));
+  if (allValid) {
+    preview.textContent = parts.length === 1
+      ? `→ 1 主端口 ${parts[0]}`
+      : `→ 拆 ${parts.length} 主端口（${parts.join('/')}）`;
+    preview.className = 'port-preview';
+  } else {
+    preview.textContent = '⚠️ 必须是 4 位数字（多值用顿号/全角逗号/英文逗号/空格分隔）';
+    preview.className = 'port-preview error';
+  }
+}
+
+function getRowsData() {
+  const trs = document.querySelectorAll('#rowsBody tr');
+  return Array.from(trs).map(tr => {
+    const mode = tr.querySelector('.f-complete-sub-mode').value;
+    const value = tr.querySelector('.f-complete-sub-value').value.trim();
+    // 拼接最终完整子端口
+    let complete_sub_port = '';
+    if (mode === '纯数字') {
+      complete_sub_port = value;
+    } else if (mode === '有尾号要求（手填任意数字字符串）') {
+      complete_sub_port = value ? `有尾号要求:${value}` : '';
+    } else {
+      // 无尾号要求（申请新通道）
+      complete_sub_port = '无尾号要求（申请新通道）';
+    }
+    return {
+      signature: tr.querySelector('.f-signature').value.trim(),
+      complete_sub_port: complete_sub_port,
+      tail_extend_position: tr.querySelector('.f-sub-port-prefix').value || '',
+      company_account: tr.querySelector('.f-acct').value.trim(),
+      company_name: tr.querySelector('.f-company').value.trim(),
+      sales_owner: tr.querySelector('.f-sales').value.trim(),
+      carrier: tr.querySelector('.f-carrier').value,
+      port_id: tr.querySelector('.f-port').value.trim(),
+      port_id_raw: tr.querySelector('.f-port').value.trim(),  // v0.10 原始多值字符串
+      sub_port_count: parseInt(tr.querySelector('.f-sub-count').value) || 1,
+      extension_count: parseInt(tr.querySelector('.f-ext-count').value) || 0,
+      business_category: tr.querySelector('.f-biz-cat').value,
+      business_sub_category: tr.querySelector('.f-biz-sub').value,
+      is_finance: tr.querySelector('.f-finance').checked,
+      remark: tr.querySelector('.f-remark').value.trim()
+    };
+  }).filter(r => r.port_id || r.signature || r.carrier);
+}
+
+function resetForm() {
+  document.getElementById('batchName').value = '';
+  renderSubmitPage();
+  document.getElementById('submitResult').innerHTML = '';
+}
+
+// v0.18: 业务类型分发提交
+function handleSubmitByBizType() {
+  if (currentBizType === 'eco') {
+    submitEco();
+  } else {
+    submitDemands();
+  }
+}
+
+async function submitDemands(force = false) {
+  const rows = getRowsData();
+  if (!rows.length) { alert('请至少填 1 行'); return; }
+  // 校验
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r.signature) { alert(`第 ${i+1} 行：签名为空`); return; }
+    if (!r.port_id) { alert(`第 ${i+1} 行：报备主端口为空`); return; }
+    if (!r.carrier) { alert(`第 ${i+1} 行：运营商为空`); return; }
+    if (!r.complete_sub_port) { alert(`第 ${i+1} 行：完整子端口为空`); return; }
+    if (!r.business_category || !r.business_sub_category) { alert(`第 ${i+1} 行：业务大类/细类未选`); return; }
+    // v0.16 校验: 子端口数 > 1 时，拓位数不能为 0
+    if ((r.sub_port_count || 1) > 1 && (r.extension_count || 0) < 1) {
+      alert(`第 ${i+1} 行（${r.signature}）：子端口数=${r.sub_port_count} 但拓位数=${r.extension_count}，拓位数不能为 0\n\n规则：子端口数 > 1 时，拓位数 ≥ 1`);
+      return;
+    }
+  }
+  pendingRows = rows;
+  const payload = {
+    batch_name: document.getElementById('batchName').value.trim() || null,
+    biz_line: 'realname',
+    biz_type: currentBizType,
+    submitter_id: currentUser.id,
+    force_submitted: force,
+    rows: rows
+  };
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 提交中...';
+  try {
+    const r = await fetch(`${API}/demands`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if (data.need_confirm) {
+      pendingSubDemands = data.sub_demands_preview;
+      pendingBatchNo = data.batch_no_preview;
+      pendingWarnings = data.warnings;
+      showWarningModal(data.warnings);
+    } else if (data.batch_no) {
+      showSubmitResult(data);
+      resetForm();
+    } else {
+      alert('提交失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 提交需求';
+  }
+}
+
+function showWarningModal(warnings) {
+  const ul = document.getElementById('warningList');
+  ul.innerHTML = warnings.map(w =>
+    `<li>子需求 #${w.sub_index + 1}：${w.reason}</li>`
+  ).join('');
+  document.getElementById('forceSubmitChk').checked = false;
+  document.getElementById('forceSubmitBtn').disabled = true;
+  document.getElementById('warningModal').classList.add('active');
+}
+function closeWarningModal() {
+  document.getElementById('warningModal').classList.remove('active');
+  pendingSubDemands = null; pendingBatchNo = null; pendingWarnings = null; pendingRows = null;
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'forceSubmitChk') {
+    document.getElementById('forceSubmitBtn').disabled = !e.target.checked;
+  }
+});
+
+async function doForceSubmit() {
+  if (!pendingRows) { closeWarningModal(); return; }
+  const payload = {
+    batch_name: document.getElementById('batchName').value.trim() || null,
+    biz_line: 'realname',
+    biz_type: currentBizType,
+    submitter_id: currentUser.id,
+    force_submitted: true,
+    rows: pendingRows
+  };
+  try {
+    const r = await fetch(`${API}/demands`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    closeWarningModal();
+    if (data.batch_no) {
+      showSubmitResult(data);
+      resetForm();
+    } else {
+      alert('强制提交失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  }
+}
+
+function showSubmitResult(data) {
+  const html = `
+    <div class="alert alert-success">
+      <h3 style="margin-bottom:10px;">✅ 提交成功</h3>
+      <div class="result-meta">
+        <div class="label">批次号：</div><div class="value"><code>${data.batch_no}</code></div>
+        <div class="label">申请人：</div><div class="value">${data.submitter_name}（${data.submitter_dept}）</div>
+        <div class="label">申请时间：</div><div class="value">${data.submit_time}</div>
+        <div class="label">拆出子需求：</div><div class="value">${data.sub_demand_count} 条</div>
+        <div class="label">带警告：</div><div class="value">${data.has_warning ? '<span class="tag-warn">是</span>' : '<span class="tag-ok">否</span>'}</div>
+      </div>
+    </div>
+    <h3 style="margin-top:16px;font-size:14px;color:#4a5568;">子需求预览（按 13 列字段顺序）</h3>
+    <div style="overflow-x:auto;">
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th>#</th><th>签名</th><th>完整子端口</th><th>企业账号</th><th>企业名称</th>
+          <th>所属销售</th><th>运营商</th><th>主端口</th><th>子/拓</th>
+          <th>业务</th><th>金融</th><th>区域/报备人</th><th>警告</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.sub_demands.map((s, i) => `
+          <tr class="${s.initial_check_warned ? 'warn' : ''}">
+            <td>${i+1}</td>
+            <td>${s.signature}</td>
+            <td>${s.complete_sub_port}</td>
+            <td>${s.company_account || '-'}</td>
+            <td>${s.company_name || '-'}</td>
+            <td>${s.sales_owner || '-'}</td>
+            <td>${s.carrier}</td>
+            <td><code style="font-size:11px;">${s.port_code_display || s.port_id}</code><br><span style="font-size:10px;color:#a0aec0;">${s.port_id}</span></td>
+            <td>${s.sub_port_count}/${s.extension_count}</td>
+            <td>${s.business_category}/${s.business_sub_category}</td>
+            <td>${s.is_finance ? '💰' : '-'}</td>
+            <td>${s.region}<br><span style="font-size:10px;color:#718096;">${s.report_handler}</span></td>
+            <td>${s.initial_check_warned ? '⚠️' : '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    </div>
+  `;
+  document.getElementById('submitResult').innerHTML = html;
+}
+
+// ========== 批次列表 ==========
+let _currentBatchNo = null;  // v0.8: 跟踪当前打开的批次，供操作后刷新
+async function showBatchDetail(batchNo) {
+  _currentBatchNo = batchNo;
+  const modal = document.getElementById('batchDetailModal');
+  const body = document.getElementById('batchDetailBody');
+  body.innerHTML = '<div class="loading">加载中...</div>';
+  modal.classList.add('active');
+  try {
+    // 并行拉批次元信息 + 子需求明细（含全部） + 报备状态汇总
+    const [batchRes, allDemandsRes, concreteDemandsRes, summaryRes] = await Promise.all([
+      fetch(`${API}/batches?user_id=${currentUser.id}`).then(r => r.json()),
+      fetch(`${API}/demands?batch_no=${encodeURIComponent(batchNo)}`).then(r => r.json()),
+      fetch(`${API}/demands?batch_no=${encodeURIComponent(batchNo)}&concrete_only=1`).then(r => r.json()),
+      fetch(`${API}/batches/${encodeURIComponent(batchNo)}/report-summary?user_id=${currentUser.id}`).then(r => r.json()).catch(() => ({}))
+    ]);
+    const batch = (Array.isArray(batchRes) ? batchRes : []).find(b => b.batch_no === batchNo);
+    const allDemands = Array.isArray(allDemandsRes) ? allDemandsRes : [];
+    const concreteDemands = Array.isArray(concreteDemandsRes) ? concreteDemandsRes : [];
+    // v0.10: 默认只显示具体子端口行（concrete_only），用户可切换看全部
+    const demands = concreteDemands;
+    const placeholderCount = allDemands.length - concreteDemands.length;
+    const summary = (summaryRes && summaryRes.summary) || {pending: 0, in_progress: 0, success: 0, failed: 0, total: 0};
+    if (!batch) {
+      body.innerHTML = '<div class="alert alert-error">批次不存在</div>';
+      return;
+    }
+    if (!demands.length) {
+      body.innerHTML = '<div class="alert alert-warning">无子需求</div>';
+      return;
+    }
+    const isHandler = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+    body.innerHTML = `
+      <div class="alert alert-info" style="margin-bottom:12px;">
+        <div class="result-meta">
+          <div class="label">批次号：</div><div class="value"><code>${batch.batch_no}</code></div>
+          <div class="label">批次名：</div><div class="value">${batch.batch_name || '<span style="color:#a0aec0;">(未命名)</span>'}</div>
+          <div class="label">申请人：</div><div class="value">${batch.submitter_name || '-'}（${batch.submitter_dept}）</div>
+          <div class="label">申请时间：</div><div class="value">${batch.created_at || '-'}</div>
+          <div class="label">子需求数：</div><div class="value">${batch.sub_demand_count} 条</div>
+          <div class="label">状态：</div><div class="value">${formatBatchStatus(batch.status)}</div>
+        </div>
+      </div>
+      <div class="alert" style="background:#f7fafc;border:1px solid #e2e8f0;margin-bottom:12px;padding:8px 12px;">
+        <div style="font-size:12px;color:#4a5568;font-weight:bold;margin-bottom:6px;">📊 报备状态汇总（联动后实时刷新）</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
+          <span style="color:#718096;">🟡 待报备：<b>${summary.pending}</b></span>
+          <span style="color:#3182ce;">🟠 进行中：<b>${summary.in_progress}</b></span>
+          <span style="color:#22543d;">🟢 成功：<b>${summary.success}</b></span>
+          <span style="color:#c53030;">🔴 失败：<b>${summary.failed}</b></span>
+          <span style="color:#4a5568;margin-left:auto;">总计：<b>${summary.total}</b></span>
+        </div>
+      </div>
+      <h3 style="font-size:14px;color:#4a5568;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+        <span>子需求明细（${demands.length} 条）</span>
+        <span style="font-size:12px;color:#718096;font-weight:normal;">共 ${allDemands.length} 行 · 具体子端口 ${concreteDemands.length} · 占位 ${placeholderCount}</span>
+        ${placeholderCount > 0 ? `<label style="font-size:12px;color:#4a5568;font-weight:normal;cursor:pointer;margin-left:auto;">
+          <input type="checkbox" id="togglePlaceholderRows" onchange="togglePlaceholderRows(this.checked, '${batch.batch_no}')" style="vertical-align:middle;"> 显示 ${placeholderCount} 行占位（原占位行）
+        </label>` : ''}
+      </h3>
+      <div style="overflow-x:auto;max-height:50vh;overflow-y:auto;">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>#</th><th>签名</th><th>完整子端口</th><th>企业账号</th><th>企业名称</th>
+            <th>所属销售</th><th>运营商</th><th>主端口</th><th>子/拓</th>
+            <th>业务</th><th>金融</th><th>区域/报备人</th><th>警告</th><th>报备结果</th>
+            ${isHandler ? '<th>操作</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${demands.map((s, i) => {
+            const rs = s.report_status || 'pending';
+            const rsTag = rs === 'success' ? '<span class="tag-ok">✓ 成功</span>'
+                        : rs === 'failed' ? '<span class="tag-warn">✗ 失败</span>'
+                        : rs === 'in_progress' ? '<span class="tag-pending">⏳ 进行中</span>'
+                        : '<span class="tag-pending">待报备</span>';
+            // v0.8 加按钮（同“全部明细”页逻辑）
+            const isPlaceholder = s.status === 'placeholder';
+            const isCancelled = s.cancelled_at || s.status === 'cancelled';
+            const voidable = ['pending', 'initial_checked', 'submitted'].includes(s.status) && !isCancelled && !isPlaceholder;
+            const canSuccess = !isCancelled && rs === 'in_progress';
+            const handleBtn = isHandler && voidable
+              ? `<button class="btn btn-mini" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandStart(${s.id}, '${escapeHtml(s.signature || '')}')" title="受理并开始报备">▶️ 处理</button>`
+              : '';
+            const rejectBtn = isHandler && voidable
+              ? `<button class="btn btn-mini" style="background:#fff5f5;color:#c53030;border:1px solid #feb2b2;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandReject(${s.id}, '${escapeHtml(s.signature || '')}')" title="报备失败">❌ 失败</button>`
+              : '';
+            const successBtn = isHandler && canSuccess
+              ? `<button class="btn btn-mini" style="background:#f0fff4;color:#22543d;border:1px solid #9ae6b4;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandSuccess(${s.id}, '${escapeHtml(s.signature || '')}')" title="报备成功">✅ 成功</button>`
+              : '';
+            const logBtn = isHandler
+              ? `<button class="btn btn-mini" style="background:#f7fafc;color:#4a5568;border:1px solid #cbd5e0;padding:2px 6px;font-size:10px;margin:1px;" onclick="showReportLog(${s.id}, '${escapeHtml(s.signature || '')}')" title="查看修改历史">📜</button>`
+              : '';
+            return `
+            <tr class="${s.initial_check_warned ? 'warn' : ''}">
+              <td>${i+1}</td>
+              <td>${s.signature || '-'}</td>
+              <td>${s.complete_sub_port || '-'}</td>
+              <td>${s.company_account || '-'}</td>
+              <td>${s.company_name || '-'}</td>
+              <td>${s.sales_owner || '-'}</td>
+              <td>${s.carrier}</td>
+              <td><code style="font-size:11px;">${s.port_code_display || s.port_id}</code><br><span style="font-size:10px;color:#a0aec0;">${s.port_id}</span></td>
+              <td>${s.sub_port_count}/${s.extension_count}</td>
+              <td>${s.business_category}/${s.business_sub_category}</td>
+              <td>${s.is_finance ? '💰' : '-'}</td>
+              <td>${s.region || '-'}<br><span style="font-size:10px;color:#718096;">${s.report_handler || '-'}</span></td>
+              <td>${s.initial_check_warned ? '<span class="tag-warn">⚠️</span>' : '-'}</td>
+              <td>${rsTag}${s.report_failure_reason ? '<br><span style="font-size:10px;color:#e53e3e;">' + escapeHtml(s.report_failure_reason) + '</span>' : ''}${s.report_completed_at ? '<br><span style="font-size:10px;color:#718096;">' + s.report_completed_at + (s.report_completed_by ? ' · ' + escapeHtml(s.report_completed_by) : '') + '</span>' : ''}</td>
+              ${isHandler ? `<td style="white-space:nowrap;">${handleBtn}${rejectBtn}${successBtn}${logBtn}</td>` : ''}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch (e) {
+    body.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+function _refreshBatchDetail() {
+  // v0.8: 回填操作后调用这个刷新当前打开的批次详情
+  if (_currentBatchNo) showBatchDetail(_currentBatchNo);
+}
+function closeBatchDetail() {
+  _currentBatchNo = null;
+  document.getElementById('batchDetailModal').classList.remove('active');
+}
+
+// v0.10: 批次详情页 toggle 「显示占位行」开关
+let _batchDetailCache = {};  // {batchNo: {all: [], concrete: []}}
+function togglePlaceholderRows(showAll, batchNo) {
+  if (showAll) {
+    // 需要重新拉取全部
+    if (!_batchDetailCache[batchNo] || !_batchDetailCache[batchNo].all) {
+      fetch(`${API}/demands?batch_no=${encodeURIComponent(batchNo)}`).then(r => r.json()).then(all => {
+        _batchDetailCache[batchNo] = _batchDetailCache[batchNo] || {};
+        _batchDetailCache[batchNo].all = all;
+        _renderBatchDetailTable(all, /*showAll*/ true, batchNo);
+      });
+    } else {
+      _renderBatchDetailTable(_batchDetailCache[batchNo].all, true, batchNo);
+    }
+  } else {
+    if (!_batchDetailCache[batchNo] || !_batchDetailCache[batchNo].concrete) {
+      fetch(`${API}/demands?batch_no=${encodeURIComponent(batchNo)}&concrete_only=1`).then(r => r.json()).then(concrete => {
+        _batchDetailCache[batchNo] = _batchDetailCache[batchNo] || {};
+        _batchDetailCache[batchNo].concrete = concrete;
+        _renderBatchDetailTable(concrete, false, batchNo);
+      });
+    } else {
+      _renderBatchDetailTable(_batchDetailCache[batchNo].concrete, false, batchNo);
+    }
+  }
+}
+function _renderBatchDetailTable(demands, showAll, batchNo) {
+  // 重新渲染子需求明细表格区
+  const h3 = document.querySelector('#batchDetailModal h3');
+  if (!h3) return;
+  const container = h3.nextElementSibling;  // <div style="overflow-x:auto...">
+  if (!container) return;
+  const isHandler = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+  container.innerHTML = `
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th>#</th><th>签名</th><th>完整子端口</th><th>具体子端口</th><th>企业账号</th><th>企业名称</th>
+          <th>所属销售</th><th>运营商</th><th>主端口</th><th>子/拓</th>
+          <th>业务</th><th>金融</th><th>区域/报备人</th><th>警告</th><th>报备结果</th>
+          ${isHandler ? '<th>操作</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${demands.map((s, i) => {
+          const rs = s.report_status || 'pending';
+          const rsTag = rs === 'success' ? '<span class="tag-ok">✓ 成功</span>'
+                      : rs === 'failed' ? '<span class="tag-warn">✗ 失败</span>'
+                      : rs === 'in_progress' ? '<span class="tag-pending">⏳ 进行中</span>'
+                      : '<span class="tag-pending">待报备</span>';
+          const isPlaceholder = s.status === 'placeholder';
+          const isCancelled = s.cancelled_at || s.status === 'cancelled';
+          const voidable = ['pending', 'initial_checked', 'submitted'].includes(s.status) && !isCancelled && !isPlaceholder;
+          const canSuccess = !isCancelled && rs === 'in_progress';
+          const handleBtn = isHandler && voidable
+            ? `<button class="btn btn-mini" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandStart(${s.id}, '${escapeHtml(s.signature || '')}')" title="受理并开始报备">▶️ 处理</button>`
+            : '';
+          const rejectBtn = isHandler && voidable
+            ? `<button class="btn btn-mini" style="background:#fff5f5;color:#c53030;border:1px solid #feb2b2;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandReject(${s.id}, '${escapeHtml(s.signature || '')}')" title="报备失败">❌ 失败</button>`
+            : '';
+          const successBtn = isHandler && canSuccess
+            ? `<button class="btn btn-mini" style="background:#f0fff4;color:#22543d;border:1px solid #9ae6b4;padding:2px 6px;font-size:10px;margin:1px;" onclick="reportDemandSuccess(${s.id}, '${escapeHtml(s.signature || '')}')" title="报备成功">✅ 成功</button>`
+            : '';
+          const logBtn = isHandler
+            ? `<button class="btn btn-mini" style="background:#f7fafc;color:#4a5568;border:1px solid #cbd5e0;padding:2px 6px;font-size:10px;margin:1px;" onclick="showReportLog(${s.id}, '${escapeHtml(s.signature || '')}')" title="查看修改历史">📜</button>`
+            : '';
+          // v0.10: 具体子端口列（concrete_sub_port）独立显示，区分原 csp
+          const concreteCell = s.concrete_sub_port
+            ? `<code style="color:#22543d;font-size:11px;background:#f0fff4;padding:1px 4px;border-radius:3px;">${escapeHtml(s.concrete_sub_port)}</code>`
+            : '<span style="color:#a0aec0;">-</span>';
+          return `
+          <tr class="${s.initial_check_warned ? 'warn' : ''}">
+            <td>${i+1}</td>
+            <td>${s.signature || '-'}</td>
+            <td>${s.complete_sub_port || '-'}</td>
+            <td>${concreteCell}</td>
+            <td>${s.company_account || '-'}</td>
+            <td>${s.company_name || '-'}</td>
+            <td>${s.sales_owner || '-'}</td>
+            <td>${s.carrier}</td>
+            <td><code style="font-size:11px;">${s.port_code_display || s.port_id}</code><br><span style="font-size:10px;color:#a0aec0;">${s.port_id}</span></td>
+            <td>${s.sub_port_count}/${s.extension_count}</td>
+            <td>${s.business_category}/${s.business_sub_category}</td>
+            <td>${s.is_finance ? '💰' : '-'}</td>
+            <td>${s.region || '-'}<br><span style="font-size:10px;color:#718096;">${s.report_handler || '-'}</span></td>
+            <td>${s.initial_check_warned ? '<span class="tag-warn">⚠️</span>' : '-'}</td>
+            <td>${rsTag}${s.report_failure_reason ? '<br><span style="font-size:10px;color:#e53e3e;">' + escapeHtml(s.report_failure_reason) + '</span>' : ''}${s.report_completed_at ? '<br><span style="font-size:10px;color:#718096;">' + s.report_completed_at + (s.report_completed_by ? ' · ' + escapeHtml(s.report_completed_by) : '') + '</span>' : ''}</td>
+            ${isHandler ? `<td style="white-space:nowrap;">${handleBtn}${rejectBtn}${successBtn}${logBtn}</td>` : ''}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  // 缓存
+  if (!_batchDetailCache[batchNo]) _batchDetailCache[batchNo] = {};
+  if (showAll) _batchDetailCache[batchNo].all = demands;
+  else _batchDetailCache[batchNo].concrete = demands;
+}
+
+// ========== 批次列表 ==========
+let currentBatchesView = 'list';
+function switchBatchesView(name) {
+  currentBatchesView = name;
+  document.getElementById('tabBatchList').classList.toggle('active', name === 'list');
+  document.getElementById('tabBatchAll').classList.toggle('active', name === 'all');
+  if (name === 'list') {
+    document.getElementById('filterBar').style.display = 'none';
+    document.getElementById('batchListFilterBar').style.display = 'block';
+    loadBatches();
+  } else {
+    document.getElementById('filterBar').style.display = 'block';
+    document.getElementById('batchListFilterBar').style.display = 'none';
+    loadAllDemands();
+  }
+}
+
+async function loadBatches() {
+  const content = document.getElementById('batchListContent');
+  const hint = document.getElementById('batchListHint');
+  content.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const r = await fetch(`${API}/batches?user_id=${currentUser.id}`);
+    const data = await r.json();
+    if (data.error) { content.innerHTML = `<div class="alert alert-error">${data.error}</div>`; return; }
+    const isAll = ['customer_service', 'operations', 'baobei'].includes(currentUser.dept) || currentUser.role === 'E_admin';
+    hint.innerHTML = isAll
+      ? '🔍 你的部门（<b>客服/运营/实名部/管理员</b>）可见 <b>全部部门</b> 提交的批次'
+      : '🔍 你的部门（<b>' + currentUser.dept + '</b>）仅可见 <b>本部门</b> 提交的批次';
+    hint.className = 'alert alert-info';
+    if (!data.length) { allBatchesListBuffer = []; const fc = document.getElementById('bl_filterCount'); if (fc) fc.textContent = '共 0 批次'; renderBatchListTable([]); return; }
+    allBatchesListBuffer = data;
+    const fc = document.getElementById('bl_filterCount');
+    if (fc) fc.textContent = `共 ${data.length} 批次`;
+    renderBatchListTable(data);
+  } catch (e) {
+    content.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+let allBatchesListBuffer = [];
+
+function getBatchListFilterValues() {
+  return {
+    batch: document.getElementById('bl_flt_batch').value.trim().toLowerCase(),
+    submitter: document.getElementById('bl_flt_submitter').value.trim().toLowerCase(),
+    date_from: document.getElementById('bl_flt_date_from').value,
+    date_to: document.getElementById('bl_flt_date_to').value,
+    biz_type: document.getElementById('bl_flt_biz_type').value,
+    status: document.getElementById('bl_flt_status').value
+  };
+}
+
+function filterBatches(batches, f) {
+  return batches.filter(b => {
+    if (f.batch && !(b.batch_no || '').toLowerCase().includes(f.batch)) return false;
+    if (f.submitter && !(b.submitter_name || '').toLowerCase().includes(f.submitter)) return false;
+    if (f.date_from && (b.created_at || '').slice(0, 10) < f.date_from) return false;
+    if (f.date_to && (b.created_at || '').slice(0, 10) > f.date_to) return false;
+    if (f.biz_type && b.biz_type !== f.biz_type) return false;
+    if (f.status && b.status !== f.status) return false;
+    return true;
+  });
+}
+
+function applyBatchListFilters() {
+  const f = getBatchListFilterValues();
+  const filtered = filterBatches(allBatchesListBuffer, f);
+  const fc = document.getElementById('bl_filterCount');
+  if (fc) fc.textContent = `当前 ${filtered.length} / ${allBatchesListBuffer.length} 批次`;
+  renderBatchListTable(filtered);
+}
+
+function resetBatchListFilters() {
+  document.getElementById('bl_flt_batch').value = '';
+  document.getElementById('bl_flt_submitter').value = '';
+  document.getElementById('bl_flt_date_from').value = '';
+  document.getElementById('bl_flt_date_to').value = '';
+  const bz = document.getElementById('bl_flt_biz_type'); if (bz) bz.value = '';
+  const st = document.getElementById('bl_flt_status'); if (st) st.value = '';
+  const fc = document.getElementById('bl_filterCount');
+  if (fc) fc.textContent = `共 ${allBatchesListBuffer.length} 批次`;
+  renderBatchListTable(allBatchesListBuffer);
+}
+
+function exportFilteredBatches() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const f = getBatchListFilterValues();
+  const filtered = filterBatches(allBatchesListBuffer, f);
+  if (!filtered.length) { alert('当前筛选无数据，不导出'); return; }
+  const rows = filtered.map(b => ({
+    '批次号': b.batch_no,
+    '批次名': b.batch_name || '',
+    '申请人': b.submitter_name || '',
+    '部门': b.submitter_dept || '',
+    '业务线': b.biz_line,
+    '子需求数': b.sub_demand_count,
+    '带警告': b.has_warning ? '是' : '否',
+    '状态': b.status,
+    '申请时间': b.created_at || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({wch: Math.max(k.length * 2, 10)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '批次列表');
+  const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+  XLSX.writeFile(wb, `批次列表_${ts}.xlsx`);
+}
+
+function renderBatchListTable(batches) {
+  const content = document.getElementById('batchListContent');
+  const c = document.getElementById('batchListCount');
+  if (c) c.textContent = `共 ${batches.length} 条`;
+  if (!batches.length) { content.innerHTML = '<div class="empty">暂无批次</div>'; return; }
+  content.innerHTML = `
+    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;">
+      <label style="font-size:12px;"><input type="checkbox" id="batchSelectAll" onchange="toggleBatchSelectAll(this.checked)"> 全选</label>
+      <span id="batchSelectCount" style="font-size:12px;color:#4a5568;">已选 0 个批次</span>
+      <button class="btn btn-sm" id="batchExportSelectedBtn" onclick="exportSelectedBatches()" disabled style="background:#3182ce;color:white;">📤 导出选中批次 Excel</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" onchange="toggleBatchSelectAll(this.checked)" title="全选"></th>
+          <th>批次号</th><th>批次名称</th><th>业务类型</th><th>业务线</th><th>申请人</th>
+          <th>部门</th><th>子需求数</th><th>警告</th><th>状态</th><th>申请时间</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${batches.map(b => {
+          const isCancelled = b.status === 'cancelled';
+          const canVoid = !isCancelled && ['submitted','pending','initial_checked'].includes(b.status);
+          const isHandler = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+          const statusBadge = isCancelled
+            ? `<span class="tag-warn" title="作废人：${b.cancelled_by_name || b.cancelled_by || '-'}&#10;作废时间：${b.cancelled_at || '-'}">❌ 已作废</span>`
+            : formatBatchStatus(b.status);
+          return `
+          <tr ${isCancelled ? 'style="opacity:0.5;background:#f7fafc;"' : ''}>
+            <td><input type="checkbox" class="batch-select-cb" data-batch="${b.batch_no}" onchange="updateBatchSelectCount()"></td>
+            <td><a href="javascript:void(0)" onclick="showBatchDetail('${b.batch_no}')" style="color:#3182ce;text-decoration:underline;"><code>${b.batch_no}</code></a></td>
+            <td>${b.batch_name || '<span style="color:#a0aec0;">(未命名)</span>'}</td>
+            <td>${renderBizTag(b.biz_type)}</td>
+            <td>${b.biz_line}</td>
+            <td>${b.submitter_name || '-'}</td>
+            <td>${b.submitter_dept}</td>
+            <td>${b.sub_demand_count}</td>
+            <td>${b.has_warning ? '<span class="tag-warn">⚠️ 警告</span>' : '<span class="tag-ok">✓</span>'}</td>
+            <td>${statusBadge}</td>
+            <td>${b.created_at || '-'}</td>
+            <td>${b.status === 'reporting' && isHandler ? `<button class="btn btn-sm" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;" onclick="unreportBatch('${b.batch_no}')" title="撤回整批，重新走工具">🔙 撤回整批</button>` : (canVoid ? `<button class="btn btn-sm" style="background:#fff5f5;color:#c53030;border:1px solid #feb2b2;" onclick="voidBatchConfirm('${b.batch_no}')" title="提交人/管理员/实名部可作废">🗑️ 作废</button>` : (isCancelled ? '<span style="color:#a0aec0;">—</span>' : '<span style="color:#a0aec0;font-size:11px;">受理中不可作废</span>'))}</td>
+          </tr>`;
+        }).join('')}
+    </div>
+  `;
+}
+
+function toggleBatchSelectAll(checked) {
+  document.querySelectorAll('.batch-select-cb').forEach(cb => cb.checked = checked);
+  updateBatchSelectCount();
+}
+
+function updateBatchSelectCount() {
+  const cbs = document.querySelectorAll('.batch-select-cb:checked');
+  const count = cbs.length;
+  const counter = document.getElementById('batchSelectCount');
+  if (counter) counter.textContent = `已选 ${count} 个批次`;
+  const btn = document.getElementById('batchExportSelectedBtn');
+  if (btn) btn.disabled = count === 0;
+}
+
+async function exportSelectedBatches() {
+  const cbs = document.querySelectorAll('.batch-select-cb:checked');
+  const batchNos = Array.from(cbs).map(cb => cb.dataset.batch);
+  if (!batchNos.length) { alert('请先选择要导出的批次'); return; }
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  // 拉取所有选中批次的 demand
+  const allDemands = [];
+  for (const bn of batchNos) {
+    const resp = await fetch(`/api/demands?batch_no=${encodeURIComponent(bn)}`);
+    const demands = await resp.json();
+    allDemands.push(...demands);
+  }
+  if (!allDemands.length) { alert('选中批次无明细'); return; }
+  // 拉批次信息
+  const batchMap = {};
+  for (const bn of batchNos) {
+    const resp = await fetch(`/api/batches?keyword=${encodeURIComponent(bn)}`);
+    const arr = await resp.json();
+    if (arr.length) batchMap[bn] = arr[0];
+  }
+  // v0.10 baobei/E_admin 走汇总逻辑，其他账号走原样
+  const isBaobeiOrAdmin = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+  const rows = isBaobeiOrAdmin
+    ? _aggregateForExport(allDemands, batchMap)
+    : allDemands.map(d => _demandToRow(d, batchMap[d.batch_no] || {}));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({wch: Math.max(k.length * 2, 12)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '需求明细');
+  const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 13);
+  const tag = isBaobeiOrAdmin ? '汇总' : '明细';
+  XLSX.writeFile(wb, `端口分配_${tag}_多批次_${batchNos.length}批_${ts}.xlsx`);
+  alert(`✅ 已导出 ${rows.length} 条${isBaobeiOrAdmin ? '汇总' : '明细'}（${batchNos.length} 个批次）`);
+}
+
+async function voidDemandRow(demandId, signature) {
+  if (!currentUser) { alert('未登录'); return; }
+  if (!confirm(`确认作废签名「${signature}」这一行吗？\n\n仅在 pending/initial_checked/submitted 状态可作废。`)) return;
+  try {
+    const resp = await fetch(`/api/demands/${demandId}/void`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: currentUser.id})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      let msg = `✅ 行作废成功（${signature}）`;
+      if (data.batch_auto_cancelled) msg += '\n\n批次内所有行已作废，批次同步标为 cancelled';
+      alert(msg);
+      loadAllDemands();  // 刷新全部明细
+      loadBatches();      // 刷新批次列表
+    } else {
+      alert(`❌ 作废失败：${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    alert(`❌ 网络错误：${e.message}`);
+  }
+}
+
+// v0.11 报备受理：开始处理 (in_progress)
+async function reportDemandStart(demandId, signature) {
+  if (!currentUser) { alert('未登录'); return; }
+  if (!confirm(`确认受理签名「${signature}」的报备？\n\n状态：待报备 → 进行中`)) return;
+  try {
+    const resp = await fetch(`/api/demands/${demandId}/report`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: currentUser.id, action: 'start'})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      alert(`✅ 已受理（${signature}）\n受理人：${data.report_completed_by}`);
+      loadAllDemands();
+      if (typeof _refreshBatchDetail === 'function') _refreshBatchDetail();
+    } else {
+      alert(`❌ 受理失败：${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    alert(`❌ 网络错误：${e.message}`);
+  }
+}
+
+// v0.11 报备驳回：弹窗填失败原因 → 标 failed
+async function reportDemandReject(demandId, signature) {
+  if (!currentUser) { alert('未登录'); return; }
+  // v0.8 改用共享弹窗（替换原 prompt）
+  showRejectModal(demandId, signature, null);
+}
+
+// v0.12 报备成功（只能从 in_progress → success）
+async function reportDemandSuccess(demandId, signature) {
+  if (!currentUser) { alert('未登录'); return; }
+  if (!confirm(`确认报备成功「${signature}」？\n\n状态：报备中 → 成功`)) return;
+  try {
+    const resp = await fetch(`/api/demands/${demandId}/report`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: currentUser.id, action: 'success'})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      alert(`✅ 报备成功（${signature}）\n处理人：${data.report_completed_by}`);
+      loadAllDemands();
+      if (typeof _refreshBatchDetail === 'function') _refreshBatchDetail();
+    } else {
+      alert(`❌ 失败：${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    alert(`❌ 网络错误：${e.message}`);
+  }
+}
+
+// v0.12 批量报备：选中行 → 批量处理/批量驳回
+async function batchReport(action) {
+  const cbs = document.querySelectorAll('.demand-select-cb:checked');
+  if (!cbs.length) { alert('请先勾选要操作的行'); return; }
+  const ids = Array.from(cbs).map(cb => parseInt(cb.dataset.id)).filter(x => !isNaN(x));
+  if (!ids.length) { alert('选中行无有效 ID'); return; }
+  if (!currentUser || (currentUser.dept !== 'baobei' && currentUser.role !== 'E_admin')) {
+    alert('仅实名部/管理员可执行批量操作'); return;
+  }
+  const actionLabel = action === 'start' ? '处理（报备中）' : action === 'reject' ? '驳回（失败）' : action === 'success' ? '成功' : action;
+  if (action === 'reject') {
+    const reason = prompt(`批量驳回 ${ids.length} 行\n\n请填失败原因（会应用到所有选中行）：`, '');
+    if (!reason || !reason.trim()) {
+      if (reason !== null) alert('驳回必填失败原因');
+      return;
+    }
+    if (!confirm(`确认将 ${ids.length} 行批量驳回？\n\n原因：${reason.trim()}`)) return;
+    await doBatchReport(ids, action, reason.trim());
+  } else {
+    if (!confirm(`确认将 ${ids.length} 行批量${actionLabel}？`)) return;
+    await doBatchReport(ids, action, null);
+  }
+}
+async function doBatchReport(ids, action, failureReason) {
+  try {
+    const body = {user_id: currentUser.id, ids, action};
+    if (failureReason) body.failure_reason = failureReason;
+    const resp = await fetch(`${API}/demands/batch-report`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      let msg = `✅ 批量${action}完成\n成功 ${data.success_count} 行`;
+      if (data.skip_count > 0) msg += `\n跳过 ${data.skip_count} 行（已作废/不存在）`;
+      if (data.fail_count > 0) msg += `\n失败 ${data.fail_count} 行`;
+      alert(msg);
+      // 取消全选 + 刷新
+      const sa = document.getElementById('allDemandsSelectAll');
+      if (sa) { sa.checked = false; }
+      loadAllDemands();
+    } else {
+      alert(`❌ 批量操作失败：${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    alert(`❌ 网络错误：${e.message}`);
+  }
+}
+
+async function voidBatchConfirm(batchNo) {
+  const confirmMsg = `确认要作废批次「${batchNo}」吗？\n\n作废后：\n· 状态变为「已作废」\n· 需求方无法再修改\n· 子需求标记为已作废\n· 此操作可由提交人/管理员/实名部执行`;
+  if (!confirm(confirmMsg)) return;
+  try {
+    const r = await fetch(`${API}/batches/${encodeURIComponent(batchNo)}/void`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: currentUser.id})
+    });
+    const data = await r.json();
+    if (data.ok) {
+      alert(`✅ 作废成功\n批次：${batchNo}\n作废时间：${data.cancelled_at}\n操作人：${data.cancelled_by_name}`);
+      loadBatches();
+    } else {
+      alert('作废失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  }
+}
+
+// v0.14 撤回整批（报备中的整批批次）
+async function unreportBatch(batchNo) {
+  if (!confirm(`确认撤回批次「${batchNo}」？\n\n撤回后：\n· 删除工具插入的报备子端口行\n· 恢复原行状态\n· 整批退回「已提交」\n· 需求方可重新走工具\n\n注意：已受理（处理中/成功/失败）的行不受影响`)) return;
+  try {
+    const r = await fetch(`${API}/batches/${encodeURIComponent(batchNo)}/unreport`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: currentUser.id})
+    });
+    const data = await r.json();
+    if (data.ok) {
+      alert(`✅ 撤回成功\n批次：${batchNo}\n删 ${data.deleted_new_rows} 个新行\n恢复 ${data.recovered_orig_rows} 个原行\n整批已退回 submitted`);
+      loadBatches();
+      if (document.getElementById('allDemandsContent').style.display !== 'none') {
+        loadAllDemands();
+      }
+    } else {
+      alert('撤回失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  }
+}
+
+// ========== 全部明细视图（平铺所有子需求） ==========
+async function loadAllDemands() {
+  document.getElementById('filterBar').style.display = 'block';
+  // v0.13 权限控制：批量按钮仅 baobei/admin 可见
+  const isHandler = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+  const batchBtnIds = ['batchStartBtn', 'batchSuccessBtn', 'batchRejectBtn'];
+  batchBtnIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isHandler ? '' : 'none';
+  });
+  const content = document.getElementById('batchListContent');
+  const hint = document.getElementById('batchListHint');
+  content.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    // 并行拉批次（拿元信息）+ 全部子需求
+    const [batchesRes, demandsRes] = await Promise.all([
+      fetch(`${API}/batches?user_id=${currentUser.id}`).then(r => r.json()),
+      fetch(`${API}/demands`).then(r => r.json())
+    ]);
+    const batches = Array.isArray(batchesRes) ? batchesRes : [];
+    const demands = Array.isArray(demandsRes) ? demandsRes : [];
+    if (demandsRes.error || batchesRes.error) {
+      content.innerHTML = `<div class="alert alert-error">${demandsRes.error || batchesRes.error}</div>`;
+      return;
+    }
+    // 只显示当前用户权限内的子需求
+    const visibleBatches = new Set(batches.map(b => b.batch_no));
+    const visibleDemands = demands.filter(d => visibleBatches.has(d.batch_no));
+    allDemandsBuffer = visibleDemands;
+    allBatchesBuffer = batches;
+    const batchMap = Object.fromEntries(batches.map(b => [b.batch_no, b]));
+    renderAllDemandsTable(visibleDemands, batchMap);
+  } catch (e) {
+    content.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+let allDemandsBuffer = [];
+let allBatchesBuffer = [];
+
+function renderAllDemandsTable(demandsList, batchMap) {
+  const content = document.getElementById('batchListContent');
+  const hint = document.getElementById('batchListHint');
+  const filterCount = document.getElementById('filterCount');
+  hint.innerHTML = `🔍 <b>全部明细</b> · 当前显示 <b>${demandsList.length}</b> 条 / 总 <b>${allDemandsBuffer.length}</b> 条。按批次号 + 行号排序。`;
+  hint.className = 'alert alert-info';
+  filterCount.textContent = `${demandsList.length} 条`;
+  if (!demandsList.length) { content.innerHTML = '<div class="empty">暂无明细（清空筛选试试）</div>'; return; }
+  const sorted = [...demandsList].sort((a, b) => {
+    if (a.batch_no !== b.batch_no) return a.batch_no < b.batch_no ? 1 : -1;
+    return (a.row_index || 0) - (b.row_index || 0);
+  });
+  content.innerHTML = `
+    <div style="overflow-x:auto;max-height:65vh;overflow-y:auto;">
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th style="width:30px;"><input type="checkbox" id="allDemandsSelectAll" onchange="toggleAllDemandsSelect(this.checked)"></th>
+          <th>批次</th><th>#</th><th>签名</th><th>完整子端口</th><th>企业账号</th><th>企业名称</th>
+          <th>所属销售</th><th>运营商</th><th>主端口</th><th>子/拓</th>
+          <th>业务</th><th>金融</th><th>区域/报备人</th><th>警告</th><th>报备结果</th><th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(d => {
+          const b = batchMap[d.batch_no] || {};
+          const rs = d.report_status || 'pending';
+          const rsTag = rs === 'success' ? '<span class="tag-ok">✓ 成功</span>'
+                      : rs === 'failed' ? '<span class="tag-warn">✗ 失败</span>'
+                      : rs === 'in_progress' ? '<span class="tag-pending">⏳ 进行中</span>'
+                      : '<span class="tag-pending">待报备</span>';
+          // v0.14: placeholder 行（工具已拆分的）需求方不能作废；baobei/admin 也不能对 placeholder 走受理流程
+          const isPlaceholder = d.status === 'placeholder';
+          const voidable = ['pending', 'initial_checked', 'submitted'].includes(d.status) && !d.cancelled_at && !isPlaceholder;
+          const isCancelled = d.status === 'cancelled' || d.cancelled_at;
+          const statusTag = isCancelled
+            ? '<span class="tag-warn">已作废</span>'
+            : `<span class="tag-pending">${d.status}</span>`;
+          // v0.11 按钮逻辑：baobei/E_admin 是受理方，看“驳回 / 处理 / 成功”；其他账号是提交方，看“作废”
+          const isHandler = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+          const reportable = !isCancelled && voidable;  // 受理按钮只在可受理状态显示
+          const canSuccess = !isCancelled && rs === 'in_progress';  // 只有报备中才能标成功
+          const handleBtn = isHandler && reportable
+            ? `<button class="btn btn-mini" style="background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;padding:1px 5px;font-size:10px;margin-top:2px;" onclick="reportDemandStart(${d.id}, '${escapeHtml(d.signature || '')}')" title="受理并开始报备">▶️ 处理</button>`
+            : '';
+          const rejectBtn = isHandler && reportable
+            ? `<button class="btn btn-mini" style="background:#fff5f5;color:#c53030;border:1px solid #feb2b2;padding:1px 5px;font-size:10px;margin-top:2px;margin-left:2px;" onclick="reportDemandReject(${d.id}, '${escapeHtml(d.signature || '')}')" title="报备失败·驳回">❌ 驳回</button>`
+            : '';
+          const successBtn = isHandler && canSuccess
+            ? `<button class="btn btn-mini" style="background:#f0fff4;color:#22543d;border:1px solid #9ae6b4;padding:1px 5px;font-size:10px;margin-top:2px;margin-left:2px;" onclick="reportDemandSuccess(${d.id}, '${escapeHtml(d.signature || '')}')" title="报备成功">✅ 成功</button>`
+            : '';
+          const voidBtn = !isHandler && voidable
+            ? `<button class="btn btn-mini" style="background:#fed7d7;color:#9b2c2c;padding:1px 5px;font-size:10px;margin-top:2px;" onclick="voidDemandRow(${d.id}, '${escapeHtml(d.signature || '')}')">🗑️ 作废</button>`
+            : '';
+          // v0.10 主端口列：baobei/E_admin 看原始多值，其他账号看单值
+          const showRawPort = (currentUser.dept === 'baobei' || currentUser.role === 'E_admin') && d.port_id_raw;
+          const portCellMain = showRawPort ? d.port_id_raw : (d.port_code_display || d.port_id);
+          const portCellSub = showRawPort ? `拆出: ${d.port_id}` : d.port_id;
+          return `
+          <tr class="${d.initial_check_warned ? 'warn' : ''} ${isCancelled ? 'cancelled' : ''}">
+            <td><input type="checkbox" class="demand-select-cb" data-id="${d.id}" onchange="updateAllDemandsSelectCount()"></td>
+            <td><a href="javascript:void(0)" onclick="showBatchDetail('${d.batch_no}')" style="color:#3182ce;text-decoration:underline;"><code>${d.batch_no}</code></a><br><span style="font-size:10px;color:#718096;">${b.submitter_name || '-'} · ${d.created_at || ''}</span></td>
+            <td>${(d.row_index || 0) + 1}</td>
+            <td>${d.signature || '-'}</td>
+            <td>${d.port_alloc_inserted === 1 ? '<span style="color:#2b6cb0;font-weight:bold;" title="报备完整子端口（工具插入）">📋 ' + (d.complete_sub_port || '-') + '</span>' : (d.complete_sub_port || '-')}</td>
+            <td>${d.company_account || '-'}</td>
+            <td>${d.company_name || '-'}</td>
+            <td>${d.sales_owner || '-'}</td>
+            <td>${d.carrier}</td>
+            <td><code style="font-size:11px;${showRawPort ? 'color:#2b6cb0;font-weight:bold;' : ''}">${portCellMain}</code><br><span style="font-size:10px;color:#a0aec0;">${portCellSub}</span></td>
+            <td>${d.sub_port_count}/${d.extension_count}</td>
+            <td>${d.business_category}/${d.business_sub_category}</td>
+            <td>${d.is_finance ? '💰' : '-'}</td>
+            <td>${d.region || '-'}<br><span style="font-size:10px;color:#718096;">${d.report_handler || '-'}</span></td>
+            <td>${d.initial_check_warned ? '<span class="tag-warn">⚠️</span>' : '-'}</td>
+            <td>${rsTag}${d.report_failure_reason ? '<br><span style="font-size:10px;color:#e53e3e;">' + escapeHtml(d.report_failure_reason) + '</span>' : ''}</td>
+            <td>${statusTag}${handleBtn}${rejectBtn}${successBtn}${voidBtn}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+function getFilterValues() {
+  return {
+    batch: document.getElementById('flt_batch').value.trim().toLowerCase(),
+    sig: document.getElementById('flt_signature').value.trim().toLowerCase(),
+    submitter: document.getElementById('flt_submitter').value.trim().toLowerCase(),
+    carrier: document.getElementById('flt_carrier').value,
+    status: document.getElementById('flt_status').value,
+    region: document.getElementById('flt_region').value.trim().toLowerCase(),
+    warn: document.getElementById('flt_warn').value,
+    date_from: document.getElementById('flt_date_from').value,
+    date_to: document.getElementById('flt_date_to').value
+  };
+}
+
+function filterDemands(demands, f, batchMap) {
+  batchMap = batchMap || {};
+  return demands.filter(d => {
+    if (f.batch && !(d.batch_no || '').toLowerCase().includes(f.batch)) return false;
+    if (f.sig && !(d.signature || '').toLowerCase().includes(f.sig)) return false;
+    if (f.submitter) {
+      const b = batchMap[d.batch_no] || {};
+      if (!(b.submitter_name || '').toLowerCase().includes(f.submitter)) return false;
+    }
+    if (f.carrier && d.carrier !== f.carrier) return false;
+    if (f.status && (d.report_status || 'pending') !== f.status) return false;  // v0.12 改为按报备结果筛
+    if (f.region && !(d.region || '').toLowerCase().includes(f.region)) return false;
+    if (f.warn === '1' && !d.initial_check_warned) return false;
+    if (f.warn === '0' && d.initial_check_warned) return false;
+    const day = (d.created_at || '').slice(0, 10);
+    if (f.date_from && day < f.date_from) return false;
+    if (f.date_to && day > f.date_to) return false;
+    return true;
+  });
+}
+
+function applyFilters() {
+  const f = getFilterValues();
+  const batchMap = Object.fromEntries(allBatchesBuffer.map(b => [b.batch_no, b]));
+  const filtered = filterDemands(allDemandsBuffer, f, batchMap);
+  renderAllDemandsTable(filtered, batchMap);
+}
+
+function resetFilters() {
+  document.getElementById('flt_batch').value = '';
+  document.getElementById('flt_signature').value = '';
+  document.getElementById('flt_submitter').value = '';
+  document.getElementById('flt_carrier').value = '';
+  document.getElementById('flt_status').value = '';
+  document.getElementById('flt_region').value = '';
+  document.getElementById('flt_warn').value = '';
+  document.getElementById('flt_date_from').value = '';
+  document.getElementById('flt_date_to').value = '';
+  const batchMap = Object.fromEntries(allBatchesBuffer.map(b => [b.batch_no, b]));
+  renderAllDemandsTable(allDemandsBuffer, batchMap);
+}
+
+function exportFilteredDemands() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const f = getFilterValues();
+  const batchMap = Object.fromEntries(allBatchesBuffer.map(b => [b.batch_no, b]));
+  const filtered = filterDemands(allDemandsBuffer, f, batchMap);
+  if (!filtered.length) { alert('当前筛选无数据，不导出'); return; }
+  _exportDemandsToExcel(filtered, batchMap, '全筛选');
+}
+
+function exportSelectedRows() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const cbs = document.querySelectorAll('.demand-select-cb:checked');
+  if (!cbs.length) { alert('请先勾选要导出的行'); return; }
+  const ids = new Set(Array.from(cbs).map(cb => parseInt(cb.dataset.id)));
+  const selected = allDemandsBuffer.filter(d => ids.has(d.id));
+  const batchMap = Object.fromEntries(allBatchesBuffer.map(b => [b.batch_no, b]));
+  _exportDemandsToExcel(selected, batchMap, '选中行');
+}
+
+function _exportDemandsToExcel(demands, batchMap, scope) {
+  // v0.10 主端口列 + 按组合并：baobei/E_admin 按“原始行”分组合并，其他账号按行
+  const isBaobeiOrAdmin = currentUser && (currentUser.dept === 'baobei' || currentUser.role === 'E_admin');
+  let rows;
+  if (isBaobeiOrAdmin) {
+    rows = _aggregateForExport(demands, batchMap);
+  } else {
+    rows = demands.map(d => _demandToRow(d, batchMap[d.batch_no] || {}));
+  }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({wch: Math.max(k.length * 2, 10)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '需求明细');
+  const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+  const tag = isBaobeiOrAdmin ? '汇总' : '明细';
+  XLSX.writeFile(wb, `需求明细_${tag}_${scope}_${ts}.xlsx`);
+}
+
+function _demandToRow(d, b) {
+  const showRaw = d.port_id_raw;
+  const portCol = showRaw ? showRaw : (d.port_code_display || d.port_id);
+  return {
+    '批次号': d.batch_no,
+    '批次名': b.batch_name || '',
+    '申请人': b.submitter_name || '',
+    '部门': b.submitter_dept || '',
+    '申请时间': d.created_at || '',
+    '行号': (d.row_index || 0) + 1,
+    '签名': d.signature || '',
+    '完整子端口': d.complete_sub_port || '',
+    '企业账号': d.company_account || '',
+    '企业名称': d.company_name || '',
+    '所属销售': d.sales_owner || '',
+    '所属运营商': d.carrier,
+    '报备主端口': portCol,
+    '子端口数': d.sub_port_count,
+    '拓位数': d.extension_count,
+    '业务大类': d.business_category,
+    '业务细类': d.business_sub_category,
+    '是否金融': d.is_finance ? '是' : '否',
+    '拓位要求': d.tail_extend_position === 'before' ? '尾号前' : (d.tail_extend_position === 'after' ? '尾号后' : ''),
+    '区域': d.region || '',
+    '报备人': d.report_handler || '',
+    '警告': d.initial_check_warned ? ('⚠️ ' + (d.initial_check_reason || '')) : '',
+    '端口预占位': d.port_pre_occupy || '',
+    '备注': d.remark || '',
+    '报备状态': d.report_status || 'pending',
+    '失败原因': d.report_failure_reason || '',
+    '报备完成时间': d.report_completed_at || '',
+    '报备完成人': d.report_completed_by || '',
+    '状态': d.status
+  };
+}
+
+function _aggregateForExport(demands, batchMap) {
+  // 按“原始行”分组：同 batch_no + signature + complete_sub_port + is_finance + 业务大类/细类 + 子端口/拓位 + 尾号要求 + 企业账号/名称/销售
+  const groupKey = (d) => [
+    d.batch_no || '',
+    d.signature || '',
+    d.complete_sub_port || '',
+    d.is_finance ? '1' : '0',
+    d.business_category || '',
+    d.business_sub_category || '',
+    d.sub_port_count || 0,
+    d.extension_count || 0,
+    d.tail_extend_position || '',
+    d.company_account || '',
+    d.company_name || '',
+    d.sales_owner || ''
+  ].join('|');
+  const groups = new Map();
+  for (const d of demands) {
+    const k = groupKey(d);
+    if (!groups.has(k)) {
+      groups.set(k, { rep: d, ports: new Set(), statuses: new Set(), reportStatuses: new Set(), warnings: [], rowCount: 0, hasPlaceholder: false, hasCancelled: false, earliestAt: d.created_at || '', latestReportAt: d.report_completed_at || '' });
+    }
+    const g = groups.get(k);
+    // 端口收集：优先用 port_id_raw（如果是多值），否则用 port_id
+    if (d.port_id_raw && /[、，,\s]/.test(d.port_id_raw)) {
+      const parts = d.port_id_raw.split(/[、，,\s]+/).filter(p => p.trim());
+      parts.forEach(p => g.ports.add(p.trim()));
+    } else {
+      g.ports.add(d.port_id);
+    }
+    if (d.status) g.statuses.add(d.status);
+    if (d.report_status) g.reportStatuses.add(d.report_status);
+    if (d.initial_check_warned && d.initial_check_reason) g.warnings.push(d.initial_check_reason);
+    g.rowCount++;
+    if (d.status === 'placeholder') g.hasPlaceholder = true;
+    if (d.status === 'cancelled' || d.cancelled_at) g.hasCancelled = true;
+    // 早 -> 晚
+    if (d.created_at && d.created_at < g.earliestAt) g.earliestAt = d.created_at;
+    if (d.report_completed_at && d.report_completed_at > g.latestReportAt) g.latestReportAt = d.report_completed_at;
+  }
+  const rows = [];
+  for (const g of groups.values()) {
+    const d = g.rep;
+    const b = batchMap[d.batch_no] || {};
+    const portCol = Array.from(g.ports).join('、');
+    // 状态汇总：有 placeholder 表示是“处理中”，有 cancelled 表作废，认报备状态完成
+    let statusSummary = '';
+    if (g.statuses.size > 1) statusSummary = Array.from(g.statuses).sort().join('+');
+    else statusSummary = Array.from(g.statuses)[0] || d.status || '';
+    if (g.hasPlaceholder && g.hasCancelled) statusSummary = '部分处理中/部分作废';
+    else if (g.hasPlaceholder) statusSummary = '报备人员处理中';
+    else if (g.hasCancelled && g.statuses.size === 1 && statusSummary === 'cancelled') statusSummary = 'cancelled';
+    let reportSummary = '';
+    if (g.reportStatuses.size > 1) reportSummary = Array.from(g.reportStatuses).sort().join('+');
+    else reportSummary = Array.from(g.reportStatuses)[0] || d.report_status || 'pending';
+    const warning = g.warnings.length ? ('⚠️ ' + g.warnings[0]) : '';
+    rows.push({
+      '批次号': d.batch_no,
+      '批次名': b.batch_name || '',
+      '申请人': b.submitter_name || '',
+      '部门': b.submitter_dept || '',
+      '申请时间': g.earliestAt,
+      '拆出子行数': g.rowCount,
+      '签名': d.signature || '',
+      '完整子端口': d.complete_sub_port || '',
+      '企业账号': d.company_account || '',
+      '企业名称': d.company_name || '',
+      '所属销售': d.sales_owner || '',
+      '所属运营商': d.carrier,
+      '报备主端口（汇总）': portCol,
+      '子端口数': d.sub_port_count,
+      '拓位数': d.extension_count,
+      '业务大类': d.business_category,
+      '业务细类': d.business_sub_category,
+      '是否金融': d.is_finance ? '是' : '否',
+      '拓位要求': d.tail_extend_position === 'before' ? '尾号前' : (d.tail_extend_position === 'after' ? '尾号后' : ''),
+      '区域': d.region || '',
+      '报备人': d.report_handler || '',
+      '警告': warning,
+      '端口预占位': d.port_pre_occupy || '',
+      '备注': d.remark || '',
+      '报备状态（汇总）': reportSummary,
+      '报备完成时间': g.latestReportAt || '',
+      '状态（汇总）': statusSummary
+    });
+  }
+  return rows;
+}
+
+function toggleAllDemandsSelect(checked) {
+  document.querySelectorAll('.demand-select-cb').forEach(cb => { cb.checked = checked; });
+  updateAllDemandsSelectCount();
+}
+
+function updateAllDemandsSelectCount() {
+  const cbs = document.querySelectorAll('.demand-select-cb:checked');
+  const fc = document.getElementById('filterCount');
+  if (fc) {
+    const total = document.querySelectorAll('.demand-select-cb').length;
+    fc.textContent = `${cbs.length} / ${total} 条已选`;
+  }
+}
+
+// ========== 我的工具页 ==========
+let portAllocRows = [];  // 展开后的行
+let portAllocFileName = '';
+let portCodeMap = {};   // {port_4:carrier: port_code_8}  从 /api/channels 拉
+
+async function loadPortCodeMap() {
+  try {
+    const resp = await fetch('/api/port-code-map');
+    const arr = await resp.json();
+    portCodeMap = {};
+    for (const c of arr) {
+      if (c.port_id && c.port_code) {
+        portCodeMap[`${c.port_id}|${c.carrier}`] = c.port_code;
+      }
+    }
+  } catch (e) {
+    console.warn('loadPortCodeMap 失败:', e);
+  }
+}
+
+function lookupPort8(port4, carrier) {
+  return portCodeMap[`${port4}|${carrier}`] || null;
+}
+
+function renderToolsPage() {
+  // 重置状态
+  portAllocRows = [];
+  portAllocFileName = '';
+  document.getElementById('portAllocFile').value = '';
+  document.getElementById('portAllocFileName').textContent = '';
+  document.getElementById('portAllocPreview').style.display = 'none';
+  document.getElementById('portAllocStatus').textContent = '';
+  // 拉主端口 8 位映射
+  if (Object.keys(portCodeMap).length === 0) loadPortCodeMap();
+  // v0.9 默认子 Tab 为端口分配
+  switchToolSubTab('portAlloc');
+}
+function switchToolSubTab(name) {
+  document.getElementById('toolSubPortAlloc').style.display = name === 'portAlloc' ? 'block' : 'none';
+  document.getElementById('toolSubReportImport').style.display = name === 'reportImport' ? 'block' : 'none';
+  // 同步 tab 按钮 active
+  const tabs = document.querySelectorAll('#toolsPage > .card > .tabs > .tab');
+  if (tabs.length >= 2) {
+    tabs[0].classList.toggle('active', name === 'portAlloc');
+    tabs[1].classList.toggle('active', name === 'reportImport');
+  }
+}
+
+function onPortAllocFile(input) {
+  const f = input.files[0];
+  if (!f) return;
+  portAllocFileName = f.name;
+  document.getElementById('portAllocFileName').textContent = `✅ 已选择：${f.name}`;
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type: 'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval: ''});
+      if (!rows.length) { alert('Excel 无数据'); return; }
+      // v0.11 提示哪一列名不匹配，让真真一看就知道
+      if (rows.length) {
+        const sample = rows[0];
+        const hasPortCol = sample['报备主端口'] !== undefined || sample['报备主端口（汇总）'] !== undefined;
+        const hasPreOccupy = sample['端口预占位'] !== undefined;
+        if (!hasPortCol) {
+          alert('❌ Excel 缺主端口列（需要“报备主端口”或“报备主端口（汇总）”列）\n\n你上传的列：' + Object.keys(sample).join('、'));
+          return;
+        }
+        if (!hasPreOccupy) {
+          alert('⚠️ Excel 缺“端口预占位”列，拆行逻辑跳过（需要从「批次列表 → 多选导出」拿原始 Excel）\n\n你上传的列：' + Object.keys(sample).join('、'));
+          return;
+        }
+      }
+      // v0.16 校验: 子端口数 > 1 时，拓位数不能为 0
+      const errors = [];
+      rows.forEach((r, i) => {
+        const sub = parseInt(r['子端口数']) || 0;
+        const ext = parseInt(r['拓位数']) || 0;
+        if (sub > 1 && ext < 1) {
+          errors.push(`第 ${i+1} 行（${r['签名'] || '(无签名)'}）：子端口数=${sub} 但拓位数=${ext}，拓位数不能为 0`);
+        }
+      });
+      if (errors.length) {
+        alert('❌ Excel 校验失败，请修正后再上传：\n\n' + errors.join('\n') + '\n\n规则：子端口数 > 1 时，拓位数 ≥ 1');
+        return;
+      }
+      // 拆行
+      const expanded = [];
+      for (const r of rows) {
+        expandOneRow(r, expanded);
+      }
+      portAllocRows = expanded;
+      renderPortAllocPreview();
+      if (!expanded.length) {
+        alert('⚠️ 拆行后为 0 行，请检查 Excel 数据是否满足：完整子端口、报备主端口、子端口数、拓位数 都填了');
+      }
+    } catch (err) {
+      alert(`❌ 解析失败：${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+// 4 条规则拆行 (v0.13 按真真 6.12 15:02 重写)
+function expandOneRow(r, out) {
+  // 必填: 批次号, 签名, 完整子端口, 主端口, 子端口数, 拓位数
+  const csp = String(r['完整子端口'] || '').trim();
+  // v0.11 兼容两种列名：需求行模板是「报备主端口」，汇总导出是「报备主端口（汇总）」
+  const portRaw = String(r['报备主端口'] || r['报备主端口（汇总）'] || '').trim();
+  const subCount = parseInt(r['子端口数']) || 1;
+  // v0.16: 拓位数 决定 idx 补 0 宽度（不是固定 2 位）
+  // 拓位=1 → idx=1位; 拓位=2 → idx=2位; 拓位=3 → idx=3位
+  const extCount = parseInt(r['拓位数']) || 0;
+  const padWidth = Math.max(1, extCount);  // 至少 1 位
+  const makeIdx = (i) => String(i).padStart(padWidth, '0');
+  const preOccupy = String(r['端口预占位'] || '').trim();
+  const tailPos = String(r['拓位要求'] || '').trim();
+  // 主端口: 可能为多值 '4336、0287、3356'
+  const ports = portRaw.split(/[、，,\s]+/).filter(p => p.trim());
+  // v0.13 语义（真真定义）:
+  //   子端口数 = 总行数
+  //   复制行数 = 总行数 - 1 = 子端口数 - 1 = 拓位数（手填的拓位数应与子端口数-1 一致）
+  //   总行数不能小于 1
+  const totalRows = Math.max(1, subCount);
+  const totalCopies = totalRows - 1;  // 原行 + 复制 totalCopies 行
+
+  // 判断 4 种模式
+  const isNoTail = csp === '无尾号要求（申请新通道）' || csp === '无尾号要求(申请新通道)' || csp === '无尾号要求';
+  const isHasTail = csp.startsWith('有尾号要求:') || csp.startsWith('有尾号要求：');
+  const tailValue = isHasTail ? csp.split(/[:：]/)[1] : '';
+  const isPureNum = /^\d+$/.test(csp);
+  const isFrontExtend = isHasTail && tailPos === '尾号前';
+
+  for (const port of ports) {
+    const carrier = r['所属运营商'] || '';
+    const port8 = lookupPort8(port, carrier) || ('0000' + port).slice(-8);
+
+    if (isFrontExtend) {
+      // 规则 ④: 有尾号要求 + 尾号前拓位 → 只 1 行，不拓位
+      // 完整子端口 / 端口预占位 = 原值（不动）
+      // 待报备完整子端口 = port8(新主端口) + 预占位后段（新字段）
+      // 报备主端口 = 当前行单端口（v0.17 修，取代原"汇总"多值）
+      const tailFromPreOccupy = preOccupy.substring(8);
+      const newReport = port8 + tailFromPreOccupy;
+      out.push({...r, '报备主端口': port, '待报备完整子端口': newReport});
+    } else if (isNoTail || isHasTail) {
+      // 规则 ② 无尾号 / 规则 ③ 有尾号+尾号后 → 原行 + 复制 N 行
+      // 完整子端口 / 端口预占位 = 原值（不动）
+      // 待报备完整子端口原行 = port8 + 预占位后段
+      // 复制 i = port8 + 预占位后段 + (i 拓位号)
+      // 报备主端口 = 当前行单端口（v0.17 修）
+      const tailFromPreOccupy = preOccupy.substring(8);
+      const base = port8 + tailFromPreOccupy;
+      out.push({...r, '报备主端口': port, '待报备完整子端口': base});
+      for (let i = 1; i <= totalCopies; i++) {
+        const idx = makeIdx(i);
+        out.push({...r, '报备主端口': port, '待报备完整子端口': base + idx});
+      }
+    } else if (isPureNum) {
+      // 规则 ①: 纯数字 → 原行 = csp 本身，复制 i = csp + 拓位号
+      // 完整子端口 / 端口预占位 = 原值（不动）
+      // 待报备完整子端口 = csp / csp+idx
+      // 报备主端口 = 当前行单端口（v0.17 修）
+      out.push({...r, '报备主端口': port, '待报备完整子端口': csp});
+      for (let i = 1; i <= totalCopies; i++) {
+        const idx = makeIdx(i);
+        out.push({...r, '报备主端口': port, '待报备完整子端口': csp + idx});
+      }
+    } else {
+      // 未知格式: 原行返回
+      out.push({...r, '完整子端口': csp, '端口预占位_原行': preOccupy});
+    }
+  }
+}
+
+function renderPortAllocPreview() {
+  document.getElementById('portAllocOrigCount').textContent = portAllocRows.length - portAllocRows.filter(r => r['_copy_idx'] !== undefined).length;  // 近似
+  document.getElementById('portAllocExpCount').textContent = portAllocRows.length;
+  // 表
+  const tbl = `
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th>批次号</th><th>签名</th><th>原始行号</th><th>报备主端口</th>
+          <th>完整子端口(原)</th><th>端口预占位</th><th>拓位要求</th>
+          <th>→ 展开后完整子端口</th><th>复制序号</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${portAllocRows.map((r, i) => `
+          <tr>
+            <td><code>${r['批次号'] || ''}</code></td>
+            <td>${r['签名'] || ''}</td>
+            <td>${r['行号'] || ''}</td>
+            <td>${r['报备主端口'] || ''}</td>
+            <td>${r['完整子端口'] || ''}</td>
+            <td>${r['端口预占位'] || ''}</td>
+            <td>${r['拓位要求'] || ''}</td>
+            <td><code>${r['待报备完整子端口'] || ''}</code></td>
+            <td>${i === 0 ? '原行' : '复制 ' + i}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('portAllocPreviewTable').innerHTML = tbl;
+  document.getElementById('portAllocPreview').style.display = 'block';
+}
+
+// v0.12 下载拆分后表格 (port_alloc_rows → Excel)
+function downloadPortAllocExcel() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  if (!portAllocRows.length) { alert('无数据，请先上传 Excel 并拆行'); return; }
+  const cols = Object.keys(portAllocRows[0]);
+  const rows = portAllocRows.map((r, i) => {
+    const row = {};
+    cols.forEach(c => { row[c] = r[c] || ''; });
+    row['复制序号'] = i === 0 ? '原行' : `复制 ${i}`;
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({wch: Math.max(k.length * 2, 10)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '拆分后');
+  const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 13);
+  XLSX.writeFile(wb, `端口分配拆分后_${ts}.xlsx`);
+  document.getElementById('portAllocStatus').textContent = `✅ 已下载 ${portAllocRows.length} 行`;
+}
+
+// v0.9.4 端口分配拆行后：检测 (子端口+运营商) 重复，让报备人员确认后继续（真真 6/15 决策 2）
+function checkPortAllocDuplicates() {
+  if (!portAllocRows || !portAllocRows.length) return null;
+  // 提取 (待报备完整子端口 + 运营商) 作为重复检测键
+  const groups = {};
+  portAllocRows.forEach((r, i) => {
+    const csp = String(r['待报备完整子端口'] || '').trim();
+    const carrier = String(r['所属运营商'] || '').trim();
+    if (!csp) return;
+    const key = csp + '|' + carrier;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({idx: i + 1, csp, carrier, signature: r['签名'] || '', batch_no: r['批次号'] || ''});
+  });
+  const dups = [];
+  for (const key in groups) {
+    if (groups[key].length > 1) {
+      dups.push({key, items: groups[key]});
+    }
+  }
+  return dups.length ? dups : null;
+}
+
+async function confirmPortAlloc() {
+  if (!portAllocRows.length) { alert('无数据'); return; }
+  // v0.9.4 重复检测 (真真 6/15 决策 2)
+  const dups = checkPortAllocDuplicates();
+  if (dups) {
+    const lines = dups.map(d => {
+      const sigs = [...new Set(d.items.map(x => x.signature))].join('、');
+      return `子端口 ${d.items[0].csp} + ${d.items[0].carrier} × ${d.items.length} 次（签名：${sigs}）`;
+    }).join('\n');
+    const proceed = confirm(
+      `⚠️ 检测到 ${dups.length} 组重复 (子端口+运营商)：\n\n${lines}\n\n` +
+      `原因可能是：\n` +
+      `  • 真的需要重复报备（多个签名共用一个子端口）\n` +
+      `  • 报备人员人为分配出现重复\n\n` +
+      `点「确定」= 已知晓重复，点「取消」= 修正后重传。`
+    );
+    if (!proceed) return;
+  }
+  if (!confirm(`确认回传 ${portAllocRows.length} 行到对应批次？\n\n原多值行将标记为「占位行」，新建行存实际子端口。`)) return;
+  document.getElementById('portAllocStatus').textContent = '⏳ 回传中...';
+  try {
+    const resp = await fetch('/api/port-alloc/apply', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rows: portAllocRows, user_id: currentUser ? currentUser.id : 1})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      document.getElementById('portAllocStatus').innerHTML = `✅ 成功：新建 ${data.created} 行, 标记 ${data.marked_placeholder} 行为占位行`;
+      alert(`✅ 回传完成\n新建 ${data.created} 行\n标记占位行 ${data.marked_placeholder} 行`);
+    } else {
+      document.getElementById('portAllocStatus').textContent = `❌ 失败：${data.error}`;
+      alert(`❌ 失败：${data.error}`);
+    }
+  } catch (e) {
+    document.getElementById('portAllocStatus').textContent = `❌ 网络错误：${e.message}`;
+  }
+}
+
+function cancelPortAlloc() {
+  portAllocRows = [];
+  document.getElementById('portAllocPreview').style.display = 'none';
+  document.getElementById('portAllocFile').value = '';
+  document.getElementById('portAllocFileName').textContent = '';
+  document.getElementById('portAllocStatus').textContent = '';
+}
+
+// ========== Admin 配置页 ==========
+async function loadAdminPage() {
+  if (currentUser.role !== 'E_admin') {
+    document.getElementById('configContent').innerHTML = '<div class="alert alert-error">需要 E_admin 权限</div>';
+    return;
+  }
+  const c = document.getElementById('configContent');
+  c.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const r = await fetch(`${API}/business-config?user_id=${currentUser.id}&_t=${Date.now()}`);
+    // 简化：直接读所有 enabled 的，加上从数据库查 disabled
+    const [enabledRes, allRes] = await Promise.all([
+      fetch(`${API}/business-config`).then(r => r.json()),
+      fetch(`/api/_admin/all-config?user_id=${currentUser.id}`).catch(() => null)
+    ]);
+    // 退化方案：仅显示 enabled
+    renderConfigBlock(c, '业务大类 (category)', 'category', enabledRes.filter(x => x.config_type === 'category'));
+    renderConfigBlock(c, '业务细类 (sub_category)', 'sub_category', enabledRes.filter(x => x.config_type === 'sub_category'));
+  } catch (e) {
+    c.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+function renderConfigBlock(container, title, type, items) {
+  // 移除旧 block
+  const old = document.getElementById(`cfg-${type}`);
+  if (old) old.remove();
+  const block = document.createElement('div');
+  block.className = 'config-block';
+  block.id = `cfg-${type}`;
+  block.innerHTML = `
+    <h3>${title}</h3>
+    <div class="config-items">
+      ${items.map(c => `
+        <span class="config-item">
+          ${c.value}
+          <button class="toggle-btn" title="删除" onclick="delConfig(${c.id})">✕</button>
+        </span>
+      `).join('') || '<span style="color:#a0aec0;font-size:12px;">（暂无）</span>'}
+    </div>
+    <div class="config-add">
+      <input type="text" id="new-${type}" placeholder="新增值">
+      <button class="btn btn-success btn-icon" onclick="addConfig('${type}')">➕ 新增</button>
+    </div>
+  `;
+  container.appendChild(block);
+}
+
+async function addConfig(type) {
+  const input = document.getElementById(`new-${type}`);
+  const value = input.value.trim();
+  if (!value) { alert('请输入值'); return; }
+  try {
+    const r = await fetch(`${API}/business-config?user_id=${currentUser.id}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ config_type: type, value: value })
+    });
+    const data = await r.json();
+    if (r.ok) {
+      input.value = '';
+      await loadBizConfig();
+      await loadAdminPage();
+    } else {
+      alert('新增失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  }
+}
+
+async function delConfig(id) {
+  if (!confirm('确认删除？')) return;
+  try {
+    const r = await fetch(`${API}/business-config/${id}?user_id=${currentUser.id}`, { method: 'DELETE' });
+    const data = await r.json();
+    if (r.ok) {
+      await loadBizConfig();
+      await loadAdminPage();
+    } else {
+      alert('删除失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('网络错误：' + e.message);
+  }
+}
+
+// ========== Excel 批量导入（v0.4 D 阶段） ==========
+const SUB_PORT_SENTINELS = {
+  '无尾号要求': '无尾号要求（申请新通道）',
+  '无尾号': '无尾号要求（申请新通道）',
+  '有尾号要求': '有尾号要求（手填任意数字字符串）',
+  '有尾号': '有尾号要求（手填任意数字字符串）'
+};
+
+function normalizeTailExtend(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  // 中文/英文/简写都接受：尾号前 / before / 前 / 尾号后 / after / 后
+  if (/(尾号)?前|^before$|^前$/i.test(s)) return 'before';
+  if (/(尾号)?后|^after$|^后$/i.test(s)) return 'after';
+  return s; // 不识别就原样上传，让后端报错
+}
+
+function normalizeCompleteSubPort(v) {
+  if (!v) return '';
+  const __orig = v;
+  v = String(v).trim();
+  if (SUB_PORT_SENTINELS[v]) return SUB_PORT_SENTINELS[v];
+  // 中文/英文全角半角冒号都支持: "有尾号要求:1234" / "有尾号要求:1234" / "有尾号要求：1234" / "有尾号要求：1234"
+  let m = v.match(/^有尾号要求\s*[:：]\s*(\d+)$/);
+  if (m) return `有尾号要求:${m[1]}`;
+  return v;
+}
+
+function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // v0.24 debug: 诊断中文冒号 bug
+  console.log('[v0.24 debug] importExcel 启动');
+  console.log('[v0.24 debug] Title:', document.title);
+  console.log('[v0.24 debug] isValidCsp 正则字符类测试:', /^有尾号要求\s*[:：]\s*\d+$/.test('有尾号要求:95598'), /^有尾号要求\s*[:：]\s*\d+$/.test('有尾号要求：995522'));
+  if (typeof XLSX === 'undefined') {
+    alert('XLSX 库未加载，请检查网络或刷新页面'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+      // 优先用名为"需求行模板"的 sheet，fall back 到第一个
+      const targetSheetName = wb.SheetNames.find(n => n.includes('需求行') || n.includes('模板')) || wb.SheetNames[0];
+      const sheet = wb.Sheets[targetSheetName];
+      const raw = XLSX.utils.sheet_to_json(sheet, {defval: ''});
+      if (!raw.length) { alert('Excel 为空'); input.value = ''; return; }
+      const {rows, errors} = parseExcelRows(raw);
+      showImportPreview(rows, errors, file.name);
+    } catch (err) {
+      alert('解析失败：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcelRows(raw) {
+  const rows = [];
+  const errors = [];
+  raw.forEach((r, idx) => {
+    const get = (...keys) => { for (const k of keys) if (r[k] !== undefined && r[k] !== '') return r[k]; return ''; };
+    const sig = String(get('客户签名', '签名', 'signature')).trim();
+    const cspRaw = get('完整子端口', 'complete_sub_port');
+    const csp = normalizeCompleteSubPort(cspRaw);
+    const portField = String(get('报备主端口', 'port_id')).trim();
+    const carrier = String(get('所属运营商', 'carrier')).trim();
+    if (!sig) { errors.push({line: idx+2, reason: '签名为空'}); return; }
+    if (!csp) { errors.push({line: idx+2, reason: '完整子端口为空'}); return; }
+    // v0.21.1: isValidCsp 严格校验(中文/英文冒号都支持,含空格容忍)
+    const isValidCsp = /^\d+$/.test(csp)
+      || csp === '无尾号要求(申请新通道)'
+      || csp === '无尾号要求（申请新通道）'
+      || csp === '有尾号要求(手填任意数字字符串)'
+      || csp === '有尾号要求（手填任意数字字符串）'
+      || /^有尾号要求\s*[:：]\s*\d+$/.test(csp);
+    if (!isValidCsp) {
+      console.log('[v0.24 parseExcel] row ' + (idx+2) + ': cspRaw="' + cspRaw + '" cspNorm="' + csp + '" valid=false');
+      errors.push({line: idx+2, reason: `完整子端口「${csp}」不是合法格式(应为:纯数字≥8位 / 无尾号要求 / 有尾号要求:数字)`});
+      return;
+    }
+    if (!portField) { errors.push({line: idx+2, reason: '报备主端口为空'}); return; }
+    if (!carrier) { errors.push({line: idx+2, reason: '运营商为空'}); return; }
+    // 智能拆行：含分隔符 → 拆 N 个 4 位
+    if (/[、，,\s]/.test(portField)) {
+      const parts = portField.split(/[、，,\s]+/).filter(p => p.trim());
+      const valid = parts.filter(p => /^\d{4}$/.test(p));
+      if (valid.length === 0) { errors.push({line: idx+2, reason: `主端口拆分后无有效4位：${portField}`}); return; }
+      if (valid.length !== parts.length) { errors.push({line: idx+2, reason: `主端口部分不合法：${portField}`}); }
+      valid.forEach(pid => {
+        rows.push({
+          __rowIndex: idx + 2,  // v0.24: Excel 原始行号 (表头在第 1 行)
+          signature: sig,
+          complete_sub_port: csp,
+          company_account: String(get('企业账号', 'company_account') || '').trim(),
+          company_name: String(get('企业名称', 'company_name') || '').trim(),
+          sales_owner: String(get('所属销售', 'sales_owner') || '').trim(),
+          carrier: carrier,
+          port_id: pid,
+          port_id_raw: portField,  // v0.10 原始多值字符串（拆出每行都带原串）
+          sub_port_count: parseInt(get('子端口数', 'sub_port_count')) || 1,
+          extension_count: parseInt(get('拓位数', 'extension_count')) || 0,
+          tail_extend_position: normalizeTailExtend(get('拓位要求', 'tail_extend_position')),
+          business_category: String(get('业务大类', 'business_category') || '').trim(),
+          business_sub_category: String(get('业务细类', 'business_sub_category') || '').trim(),
+          is_finance: /^(是|1|true|yes)$/i.test(String(get('是否金融', 'is_finance') || '').trim()),
+          remark: String(get('备注', 'remark') || '').trim()
+        });
+      });
+    } else {
+      // 单值
+      if (!/^\d{4}$/.test(portField)) { errors.push({line: idx+2, reason: `主端口不是4位数字：${portField}`}); return; }
+      rows.push({
+        __rowIndex: idx + 2,  // v0.24: Excel 原始行号 (表头在第 1 行)
+        signature: sig,
+        complete_sub_port: csp,
+        company_account: String(get('企业账号', 'company_account') || '').trim(),
+        company_name: String(get('企业名称', 'company_name') || '').trim(),
+        sales_owner: String(get('所属销售', 'sales_owner') || '').trim(),
+        carrier: carrier,
+        port_id: portField,
+        port_id_raw: portField,  // v0.10 单值时也存
+        sub_port_count: parseInt(get('子端口数', 'sub_port_count')) || 1,
+        extension_count: parseInt(get('拓位数', 'extension_count')) || 0,
+        tail_extend_position: normalizeTailExtend(get('拓位要求', 'tail_extend_position')),
+        business_category: String(get('业务大类', 'business_category') || '').trim(),
+        business_sub_category: String(get('业务细类', 'business_sub_category') || '').trim(),
+        is_finance: /^(是|1|true|yes)$/i.test(String(get('是否金融', 'is_finance') || '').trim()),
+        remark: String(get('备注', 'remark') || '').trim()
+      });
+    }
+  });
+  return {rows, errors};
+}
+
+function showImportPreview(rows, errors, fileName) {
+  const errHtml = errors.length
+    ? `<div class="alert alert-warning"><b>跳过 ${errors.length} 行：</b><ul>${errors.slice(0,10).map(e => `<li>第 ${e.line} 行：${e.reason}</li>`).join('')}${errors.length>10?'<li>... 更多省略</li>':''}</ul></div>`
+    : '';
+  const html = `
+    <h3>📥 Excel 导入预览 · ${fileName}</h3>
+    ${errHtml}
+    <p>解析成功 <b>${rows.length}</b> 行。点击"确认导入"加到表单。${rows.length>50?'<span style="color:#dd6b20;">行数较多，建议分批。</span>':''}</p>
+    <div style="max-height:50vh;overflow-y:auto;">
+    <table class="list-table">
+      <thead><tr><th>#</th><th>签名</th><th>主端口</th><th>运营商</th><th>完整子端口</th><th>业务</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `<tr><td>${i+1}</td><td>${r.signature}</td><td>${r.port_id}</td><td>${r.carrier}</td><td>${r.complete_sub_port}</td><td>${r.business_category}/${r.business_sub_category}</td></tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('importPreviewModal')">取消</button>
+      <button class="btn btn-primary" onclick='confirmImport(${JSON.stringify(rows).replace(/'/g, "&apos;")})'>✅ 确认导入（加 ${rows.length} 行）</button>
+    </div>
+  `;
+  showModal('importPreviewModal', html);
+}
+
+function confirmImport(rows) {
+  // 写入表单
+  const tbody = document.getElementById('rowsBody');
+  rows.forEach(r => {
+    // 完整子端口拆 mode + value（支持 3 种格式）
+    let mode = '纯数字', value = '';
+    if (r.complete_sub_port === '无尾号要求（申请新通道）') {
+      mode = '无尾号要求（申请新通道）';
+    } else if (r.complete_sub_port === '有尾号要求（手填任意数字字符串）') {
+      mode = '有尾号要求（手填任意数字字符串）';
+    } else if (r.complete_sub_port && r.complete_sub_port.startsWith('有尾号要求:')) {
+      mode = '有尾号要求（手填任意数字字符串）';
+      value = r.complete_sub_port.substring('有尾号要求:'.length);
+    } else {
+      value = r.complete_sub_port || '';
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="f-row-num" style="text-align:center;color:#718096;font-size:11px;background:#f7fafc;"></td>
+      <td><input type="text" class="f-signature" value="${escapeHtml(r.signature)}"></td>
+      <td>
+        <div style="display:flex;gap:2px;align-items:center;flex-wrap:wrap;">
+          <select class="f-complete-sub-mode" onchange="onCompleteSubModeChange(this)" style="width:28%;">
+            <option value="纯数字" ${mode==='纯数字'?'selected':''} title="纯数字（如 106931234567）">纯数字</option>
+            <option value="无尾号要求（申请新通道）" ${mode==='无尾号要求（申请新通道）'?'selected':''} title="无尾号要求（申请新通道）">无尾号</option>
+            <option value="有尾号要求（手填任意数字字符串）" ${mode==='有尾号要求（手填任意数字字符串）'?'selected':''} title="有尾号要求（手填任意数字字符串）">有尾号</option>
+          </select>
+          <input type="text" class="f-complete-sub-value" value="${escapeHtml(value)}" oninput="onCompleteSubValueChange(this)" style="width:34%;">
+          <select class="f-sub-port-prefix" style="width:36%;font-size:11px;" title="v0.8: 拓位要求，有尾号+拓位>1时必选">
+            <option value="">—</option>
+            <option value="before" ${r.tail_extend_position==='before'?'selected':''}>尾号前</option>
+            <option value="after" ${r.tail_extend_position==='after'?'selected':''}>尾号后</option>
+          </select>
+        </div>
+      </td>
+      <td><input type="text" class="f-acct" value="${escapeHtml(r.company_account)}"></td>
+      <td><input type="text" class="f-company" value="${escapeHtml(r.company_name)}"></td>
+      <td><input type="text" class="f-sales" value="${escapeHtml(r.sales_owner)}"></td>
+      <td>
+        <select class="f-carrier" required>
+          <option value="">请选择运营商</option>
+          ${['移动','联通','电信'].map(c => `<option value="${c}" ${c===r.carrier?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <input type="text" class="f-port" value="${escapeHtml(r.port_id)}" oninput="updatePortPreview(this)">
+        <div class="port-preview"></div>
+      </td>
+      <td><input type="number" class="f-sub-count" value="${r.sub_port_count}" min="1" max="99"></td>
+      <td><input type="number" class="f-ext-count" value="${r.extension_count}" min="0" max="99" oninput="toggleTailExtend(this.closest('tr'))"></td>
+      <td>
+        <select class="f-biz-cat" required>
+          <option value="" disabled selected>请选择</option>
+          ${bizOptions('category')}
+        </select>
+      </td>
+      <td>
+        <select class="f-biz-sub" required>
+          <option value="" disabled selected>请选择</option>
+          ${bizOptions('sub_category')}
+        </select>
+      </td>
+      <td style="text-align:center;"><input type="checkbox" class="f-finance" ${r.is_finance?'checked':''}></td>
+      <td><input type="text" class="f-remark" value="${escapeHtml(r.remark)}"></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="removeRow(this)">🗑️</button></td>
+    `;
+    // 设置业务下拉
+    const bizCat = tr.querySelector('.f-biz-cat');
+    const bizSub = tr.querySelector('.f-biz-sub');
+    if ([...bizCat.options].some(o => o.value === r.business_category)) bizCat.value = r.business_category;
+    if ([...bizSub.options].some(o => o.value === r.business_sub_category)) bizSub.value = r.business_sub_category;
+    // 触发 mode 切换
+    onCompleteSubModeChange(tr.querySelector('.f-complete-sub-mode'));
+    // 触发拓位 3 号位显隐
+    toggleTailExtend(tr);
+    // 触发端口预览
+    updatePortPreview(tr.querySelector('.f-port'));
+    tbody.appendChild(tr);
+    toggleTailExtend(tr);
+  });
+  renumberFormRows();
+  closeModal('importPreviewModal');
+  document.getElementById('importHint').textContent = `✅ 已导入 ${rows.length} 行，可继续编辑后提交`;
+  document.getElementById('excelImport').value = '';
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function downloadExcelTemplate() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const headers = ['签名','完整子端口','企业账号','企业名称','所属销售','所属运营商',
+    '报备主端口','子端口数','拓位数','拓位要求','业务大类','业务细类','是否金融','备注'];
+  const examples = [
+    ['示例签名1','12345678','acct001','示例公司1','张销售','移动','3228',1,0,'','55','1','否','示例备注'],
+    ['示例签名2','无尾号要求','acct002','示例公司2','李销售','电信','3228、1802',1,0,'','77','2','是','多端口示例'],
+    ['示例签名3','有尾号要求:5678','acct003','示例公司3','王销售','联通','4336',2,2,'尾号前','55','4','否','有尾号+拓位>1 必填尾号前/后'],
+    ['示例签名4','106931234567','acct004','示例公司4','赵销售','电信','3123',1,0,'','77','2','否','纯数字 ≥8位自动识别主端口']
+  ];
+  const data = [headers, ...examples];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = headers.map(h => ({wch: Math.max(h.length * 2, 12)}));
+  // 填写说明 sheet
+  const notes = [
+    ['📋 需求行导入模板 - 填写说明'],
+    [],
+    ['列名', '填写要求', '示例'],
+    ['签名', '必填，不能为空', '示例签名1'],
+    ['完整子端口', '3 种格式：① 纯数字（≥8位自动识别主端口后4位） ② "无尾号要求" ③ "有尾号要求:尾号值"', '12345678 / 无尾号要求 / 有尾号要求:5678'],
+    ['企业账号', '可空', 'acct001'],
+    ['企业名称', '可空', '示例公司1'],
+    ['所属销售', '可空', '张销售'],
+    ['所属运营商', '必填，固定三个：移动/联通/电信', '移动'],
+    ['报备主端口', '必填。4位数字。支持多值分隔：顿号、全角逗号、英文逗号、空格', '3228 或 3228、1802 或 3228，1802'],
+    ['子端口数', '默认 1，范围 1-99。⚠️ 多引流 = 短位+长位 总数量', '1'],
+    ['拓位数', '默认 0，范围 0-99', '0'],
+    ['拓位要求', 'v0.8 起新规则。完整子端口为「有尾号要求」且拓位数>1 时必填。可写：尾号前/尾号后（接受 before/after/前/后 简写）', '尾号前'],
+    ['业务大类', '必填。默认 55 / 77，admin 可配', '55'],
+    ['业务细类', '必填。默认 1 / 2 / 4，admin 可配', '1'],
+    ['是否金融', '是/否/1/0/true/false。系统会查 channel_list 自动带，可手动覆盖', '否'],
+    ['备注', '可空', '示例备注'],
+    [],
+    ['⚠️ 注意'],
+    ['1. 第一行是表头，不要动'],
+    ['2. 完整子端口 = 纯数字时，报备主端口会被自动识别并禁用（第5-8位）'],
+    ['3. 报备主端口含分隔符时，一行自动拆为多行子需求'],
+    ['4. 错误行会跳过（顶部提示），有效行导入'],
+    ['5. 完整子端口为「有尾号要求」+ 拓位数>1 时，「拓位要求」列必填（尾号前/后），否则后端拒收'],
+    ['6. 「子端口数」= 总行数 = 短位 + 长位。例：短位 1 + 长位 2 = 填 3。拓位数 = 子端口数 - 1']
+  ];
+  const wsNotes = XLSX.utils.aoa_to_sheet(notes);
+  wsNotes['!cols'] = [{wch: 18}, {wch: 60}, {wch: 30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsNotes, '填写说明');
+  XLSX.utils.book_append_sheet(wb, ws, '需求行模板');
+  XLSX.writeFile(wb, '需求行导入模板.xlsx');
+}
+function switchAdminSubTab(name) {
+  const map = {biz: 0, channels: 1, channelsEco: 2, rejections: 3};
+  const idx = map[name] ?? 0;
+  const subTabs = document.querySelectorAll('#adminPage .tabs .tab');
+  subTabs.forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.getElementById('adminSubBiz').style.display = name === 'biz' ? 'block' : 'none';
+  document.getElementById('adminSubChannels').style.display = name === 'channels' ? 'block' : 'none';
+  document.getElementById('adminSubChannelsEco').style.display = name === 'channelsEco' ? 'block' : 'none';
+  document.getElementById('adminSubRejections').style.display = name === 'rejections' ? 'block' : 'none';
+  if (name === 'biz') loadAdminPage();
+  if (name === 'channels') loadChannels();
+  if (name === 'channelsEco') loadChannelsEco();
+  if (name === 'rejections') loadRejections();
+}
+
+// ========== 通道基础信息 ==========
+async function loadChannels() {
+  if (currentUser.role !== 'E_admin') return;
+  const kw = document.getElementById('channelSearch').value.trim();
+  const c = document.getElementById('channelsContent');
+  c.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const r = await fetch(`${API}/channels?user_id=${currentUser.id}${kw ? '&keyword=' + encodeURIComponent(kw) : ''}`);
+    const data = await r.json();
+    if (data.error) { c.innerHTML = `<div class="alert alert-error">${data.error}</div>`; return; }
+    document.getElementById('channelCount').textContent = `共 ${data.length} 条`;
+    if (!data.length) { c.innerHTML = '<div class="empty">无数据</div>'; return; }
+    c.innerHTML = `
+      <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>port_code</th><th>port_id</th><th>通道名</th><th>类型</th>
+            <th>区域</th><th>运营商</th><th>info_type</th><th>金融</th>
+            <th>报备人</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(ch => `
+            <tr>
+              <td><code>${ch.port_code}</code></td>
+              <td>${ch.port_id}</td>
+              <td>${ch.channel_name || '-'}</td>
+              <td>${ch.channel_category}</td>
+              <td>${ch.region}</td>
+              <td>${ch.carrier}</td>
+              <td>${ch.info_type || '-'}</td>
+              <td>${ch.is_finance ? '💰' : '-'}</td>
+              <td>${ch.report_handler}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick='editChannel(${JSON.stringify(ch).replace(/'/g, "&apos;")})'>✏️</button>
+                <button class="btn btn-secondary btn-sm" onclick="delChannel(${ch.id})">🗑️</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch (e) {
+    c.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+function showChannelForm(ch) {
+  const isEdit = !!ch;
+  const v = ch || {port_code:'', port_id:'', channel_name:'', channel_category:'短信', region:'', carrier:'移动', info_type:'', is_finance:false, report_handler:''};
+  const html = `
+    <h3>${isEdit ? '✏️ 编辑' : '➕ 新增'} 通道</h3>
+    <div class="form-row"><label>port_code (8位)</label><input type="text" id="cf_port_code" value="${v.port_code}"></div>
+    <div class="form-row"><label>port_id (4位)</label><input type="text" id="cf_port_id" value="${v.port_id}"></div>
+    <div class="form-row"><label>通道名</label><input type="text" id="cf_name" value="${v.channel_name || ''}"></div>
+    <div class="form-row"><label>类型</label>
+      <select id="cf_cat">
+        ${['短信','视信','5G','专用'].map(c => `<option value="${c}" ${c===v.channel_category?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>区域</label><input type="text" id="cf_region" value="${v.region}"></div>
+    <div class="form-row"><label>运营商</label>
+      <select id="cf_carrier">
+        ${['移动','联通','电信','其他'].map(c => `<option value="${c}" ${c===v.carrier?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>info_type</label><input type="text" id="cf_info" value="${v.info_type || ''}"></div>
+    <div class="form-row"><label>金融</label><input type="checkbox" id="cf_finance" ${v.is_finance?'checked':''}></div>
+    <div class="form-row"><label>报备人</label><input type="text" id="cf_handler" value="${v.report_handler}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeChannelForm()">取消</button>
+      <button class="btn btn-primary" onclick="saveChannel(${isEdit ? ch.id : 'null'})">保存</button>
+    </div>
+  `;
+  showModal('channelFormModal', html);
+}
+function closeChannelForm() { closeModal('channelFormModal'); }
+function editChannel(ch) { showChannelForm(ch); }
+async function saveChannel(id) {
+  const body = {
+    port_code: document.getElementById('cf_port_code').value.trim(),
+    port_id: document.getElementById('cf_port_id').value.trim(),
+    channel_name: document.getElementById('cf_name').value.trim(),
+    channel_category: document.getElementById('cf_cat').value,
+    region: document.getElementById('cf_region').value.trim(),
+    carrier: document.getElementById('cf_carrier').value,
+    info_type: document.getElementById('cf_info').value.trim(),
+    is_finance: document.getElementById('cf_finance').checked,
+    report_handler: document.getElementById('cf_handler').value.trim()
+  };
+  if (!body.port_code || !body.port_id || !body.channel_name || !body.channel_category || !body.region || !body.carrier || !body.report_handler) {
+    alert('必填项不能为空'); return;
+  }
+  const method = id ? 'PATCH' : 'POST';
+  const url = id ? `${API}/channels/${id}?user_id=${currentUser.id}` : `${API}/channels?user_id=${currentUser.id}`;
+  try {
+    const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const data = await r.json();
+    if (r.ok) {
+      closeChannelForm();
+      loadChannels();
+    } else {
+      alert('保存失败：' + (data.error || JSON.stringify(data)));
+    }
+  } catch (e) { alert('网络错误：' + e.message); }
+}
+async function delChannel(id) {
+  if (!confirm('确认删除该通道？')) return;
+  try {
+    const r = await fetch(`${API}/channels/${id}?user_id=${currentUser.id}`, {method: 'DELETE'});
+    if (r.ok) loadChannels();
+    else { const d = await r.json(); alert('删除失败：' + (d.error || '')); }
+  } catch (e) { alert('网络错误：' + e.message); }
+}
+
+// ========== 三方通道资源 (v0.11) ==========
+async function loadChannelsEco() {
+  if (currentUser.role !== 'E_admin') return;
+  const kw = document.getElementById('channelEcoSearch').value.trim();
+  const c = document.getElementById('channelsEcoContent');
+  c.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const r = await fetch(`${API}/channels-eco?user_id=${currentUser.id}${kw ? '&keyword=' + encodeURIComponent(kw) : ''}`);
+    const data = await r.json();
+    if (data.error) { c.innerHTML = `<div class="alert alert-error">${data.error}</div>`; return; }
+    document.getElementById('channelEcoCount').textContent = `共 ${data.length} 条`;
+    if (!data.length) { c.innerHTML = '<div class="empty">无数据</div>'; return; }
+    c.innerHTML = `
+      <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>通道ID</th><th>通道名</th><th>来源</th><th>资源类型</th><th>网关账号</th>
+            <th>运营商</th><th>供应商</th><th>状态</th><th>创建时间</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(ch => `
+            <tr>
+              <td><code>${ch.channel_id}</code></td>
+              <td>${ch.channel_name || '-'}</td>
+              <td>${ch.source || '-'}</td>
+              <td>${ch.resource_type || '-'}</td>
+              <td>${ch.gateway_account || '-'}</td>
+              <td>${ch.carrier || '-'}</td>
+              <td>${ch.supplier || '-'}</td>
+              <td>${ch.channel_status === '启用' ? '<span class="tag-ok">启用</span>' : '<span class="tag-warn">' + (ch.channel_status || '-') + '</span>'}</td>
+              <td style="font-size:11px;color:#718096;">${ch.created_at || '-'}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick='editChannelEco(${JSON.stringify(ch).replace(/'/g, "&apos;")})'>✏️</button>
+                <button class="btn btn-secondary btn-sm" onclick="delChannelEco(${ch.id})">🗑️</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch (e) {
+    c.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+function showChannelEcoForm(ch) {
+  const isEdit = !!ch;
+  const v = ch || {source:'生态', resource_type:'短信', channel_status:'启用', channel_id:'', channel_name:'', gateway_account:'', carrier:'移动', supplier:''};
+  const html = `
+    <h3>${isEdit ? '✏️ 编辑' : '➕ 新增'} 三方通道</h3>
+    <div class="form-row"><label>通道ID *</label><input type="text" id="cef_channel_id" value="${v.channel_id}" ${isEdit ? 'readonly' : ''}></div>
+    <div class="form-row"><label>通道名 *</label><input type="text" id="cef_name" value="${v.channel_name || ''}"></div>
+    <div class="form-row"><label>来源 *</label>
+      <select id="cef_source">
+        ${['生态','自营','三方'].map(s => `<option value="${s}" ${s===v.source?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>资源类型 *</label>
+      <select id="cef_resource_type">
+        ${['短信','视信','5G','专用'].map(s => `<option value="${s}" ${s===v.resource_type?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>网关账号 *</label><input type="text" id="cef_gateway" value="${v.gateway_account || ''}"></div>
+    <div class="form-row"><label>运营商 *</label>
+      <select id="cef_carrier">
+        ${['移动','联通','电信','全网'].map(s => `<option value="${s}" ${s===v.carrier?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>供应商 *</label><input type="text" id="cef_supplier" value="${v.supplier || ''}"></div>
+    <div class="form-row"><label>通道状态 *</label>
+      <select id="cef_status">
+        ${['启用','停用'].map(s => `<option value="${s}" ${s===v.channel_status?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeChannelEcoForm()">取消</button>
+      <button class="btn btn-primary" onclick="saveChannelEco(${isEdit ? ch.id : 'null'})">保存</button>
+    </div>
+  `;
+  showModal('channelEcoFormModal', html);
+}
+function closeChannelEcoForm() { closeModal('channelEcoFormModal'); }
+function editChannelEco(ch) { showChannelEcoForm(ch); }
+async function saveChannelEco(id) {
+  const body = {
+    channel_id: document.getElementById('cef_channel_id').value.trim(),
+    channel_name: document.getElementById('cef_name').value.trim(),
+    source: document.getElementById('cef_source').value,
+    resource_type: document.getElementById('cef_resource_type').value,
+    gateway_account: document.getElementById('cef_gateway').value.trim(),
+    carrier: document.getElementById('cef_carrier').value,
+    supplier: document.getElementById('cef_supplier').value.trim(),
+    channel_status: document.getElementById('cef_status').value
+  };
+  try {
+    const r = await fetch(`${API}/channels-eco${id ? '/' + id : ''}?user_id=${currentUser.id}`, {
+      method: id ? 'PATCH' : 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok) { alert('✅ 保存成功'); closeChannelEcoForm(); loadChannelsEco(); }
+    else { alert('保存失败：' + (data.error || '')); }
+  } catch (e) { alert('网络错误：' + e.message); }
+}
+async function delChannelEco(id) {
+  if (!confirm('确认删除该三方通道？')) return;
+  try {
+    const r = await fetch(`${API}/channels-eco/${id}?user_id=${currentUser.id}`, {method: 'DELETE'});
+    if (r.ok) loadChannelsEco();
+    else { const d = await r.json(); alert('删除失败：' + (d.error || '')); }
+  } catch (e) { alert('网络错误：' + e.message); }
+}
+
+// ========== 不合规签名 ==========
+async function loadRejections() {
+  if (currentUser.role !== 'E_admin') return;
+  const kw = document.getElementById('rejectionSearch').value.trim();
+  const c = document.getElementById('rejectionsContent');
+  c.innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    const r = await fetch(`${API}/rejections?user_id=${currentUser.id}${kw ? '&keyword=' + encodeURIComponent(kw) : ''}`);
+    const data = await r.json();
+    if (data.error) { c.innerHTML = `<div class="alert alert-error">${data.error}</div>`; return; }
+    document.getElementById('rejectionCount').textContent = `共 ${data.length} 条`;
+    if (!data.length) { c.innerHTML = '<div class="empty">无数据</div>'; return; }
+    c.innerHTML = `
+      <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+      <table class="list-table">
+        <thead>
+          <tr><th>签名</th><th>驳回原因</th><th>区域</th><th>运营商</th><th>来源</th><th>时间</th></tr>
+        </thead>
+        <tbody>
+          ${data.map(r => `
+            <tr>
+              <td>${r.signature}</td>
+              <td>${r.rejection_reason}</td>
+              <td>${r.region || '-'}</td>
+              <td>${r.carrier}</td>
+              <td>${r.source || '-'}</td>
+              <td>${r.created_at || '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch (e) {
+    c.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+
+function uploadRejections(input) {
+  if (currentUser.role !== 'E_admin') return;
+  const file = input.files[0];
+  if (!file) return;
+  if (!confirm(`确认用 ${file.name} 全量覆盖当前所有驳回记录？\\n\\n该操作不可撤销！`)) {
+    input.value = '';
+    return;
+  }
+  // 客户端解析 Excel
+  if (typeof XLSX === 'undefined') {
+    alert('XLSX 库未加载，请刷新页面重试'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval: ''});
+      // 列名映射（兼容真真原 Excel 格式）
+      const mapped = rows.map(r => {
+        const get = (...keys) => { for (const k of keys) if (r[k] !== undefined && r[k] !== '') return r[k]; return ''; };
+        return {
+          company_name: get('企业名称', 'company_name', 'A'),
+          signature: get('签名', 'signature', 'B'),
+          rejection_reason: get('驳回原因', 'rejection_reason', 'C'),
+          region: get('区域', 'region', 'D'),
+          carrier: get('运营商', 'carrier', 'E'),
+          rejection_date: get('驳回日期', 'rejection_date', 'F'),
+          remark: get('备注', 'remark', 'G')
+        };
+      }).filter(r => r.signature && r.carrier && r.rejection_reason);
+      if (!mapped.length) { alert('Excel 中无有效数据'); return; }
+      const res = await fetch(`${API}/rejections/import?user_id=${currentUser.id}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rows: mapped})
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`导入完成：成功 ${data.inserted} 条，跳过 ${data.skipped} 条`);
+        input.value = '';
+        loadRejections();
+      } else {
+        alert('导入失败：' + (data.error || JSON.stringify(data)));
+      }
+    } catch (err) {
+      alert('解析失败：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadRejectionTemplate() {
+  // 下载一个 CSV 模板（Excel 兼容）
+  const csv = '企业名称,签名,驳回原因,区域,运营商,驳回日期,备注\n示例公司,示例签名,示例原因,广州,移动,2025-01-01,示例备注\n';
+  const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '驳回日志导入模板.csv';
+  a.click();
+}
+
+// ========== 通用模态框 ==========
+function showModal(id, html) {
+  const m = document.getElementById(id);
+  if (!m) {
+    const div = document.createElement('div');
+    div.className = 'modal-overlay active';
+    div.id = id;
+    div.innerHTML = `<div class="modal" onclick="if(event.target===this)closeModal('${id}')">${html}</div>`;
+    document.body.appendChild(div);
+  } else {
+    m.querySelector('.modal').innerHTML = html;
+    m.classList.add('active');
+  }
+}
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.remove('active');
+}
+
+// ========== v0.8 报备结果·失败原因弹窗（共享）==========
+let _rejectContext = null;  // {demandId, signature, multi: bool, ids: []}
+function showRejectModal(demandId, signature, multiIds) {
+  _rejectContext = { demandId, signature, multi: !!multiIds, ids: multiIds || [] };
+  const isMulti = !!multiIds;
+  const html = `
+    <h3 style="color:#c53030;margin-bottom:8px;">❌ 报备失败·填原因</h3>
+    <p style="color:#718096;font-size:12px;margin-bottom:12px;">
+      ${isMulti ? '批量驳回 <b>' + multiIds.length + '</b> 行' : '签名：<b>' + escapeHtml(signature) + '</b>'}
+      失败原因会写进修改日志。
+    </p>
+    <textarea id="rejectReasonInput" placeholder="例如：经办人一人多企校验失败！" style="width:100%;min-height:90px;padding:8px;border:1px solid #cbd5e0;border-radius:4px;font-size:13px;box-sizing:border-box;font-family:inherit;"></textarea>
+    <div style="font-size:11px;color:#a0aec0;margin-top:4px;">* 必填（自由填）</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
+      <button class="btn btn-primary" style="background:#c53030;" onclick="confirmReject()">提交</button>
+    </div>
+  `;
+  showModal('rejectReasonModal', html);
+  setTimeout(() => { const t = document.getElementById('rejectReasonInput'); if (t) t.focus(); }, 50);
+}
+function closeRejectModal() { closeModal('rejectReasonModal'); _rejectContext = null; }
+async function confirmReject() {
+  const reason = (document.getElementById('rejectReasonInput') || {}).value || '';
+  const reasonTrim = reason.trim();
+  if (!reasonTrim) { alert('失败原因必填'); return; }
+  if (!_rejectContext) { closeRejectModal(); return; }
+  const { demandId, multi, ids } = _rejectContext;
+  closeRejectModal();
+  try {
+    let resp, data;
+    if (multi) {
+      resp = await fetch(`/api/demands/batch-report`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id, action: 'reject', failure_reason: reasonTrim, ids})
+      });
+    } else {
+      resp = await fetch(`/api/demands/${demandId}/report`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: currentUser.id, action: 'reject', failure_reason: reasonTrim})
+      });
+    }
+    data = await resp.json();
+    if (data.ok) {
+      if (multi) {
+        alert(`✅ 批量驳回成功：${data.success_count} 行`);
+      } else {
+        alert(`✅ 已标记失败\n原因：${data.report_failure_reason}\n处理人：${data.report_completed_by}`);
+      }
+      if (typeof loadAllDemands === 'function') loadAllDemands();
+      if (typeof _refreshBatchDetail === 'function') _refreshBatchDetail();
+    } else {
+      alert(`❌ 失败：${data.error || '未知错误'}`);
+    }
+  } catch (e) { alert(`❌ 网络错误：${e.message}`); }
+}
+
+// ========== v0.8 报备结果·修改历史弹窗（共享）==========
+async function showReportLog(demandId, signature) {
+  const html = `
+    <h3 style="color:#2d3748;margin-bottom:8px;">📜 修改历史</h3>
+    <p style="color:#718096;font-size:12px;margin-bottom:12px;">
+      签名：<b>${escapeHtml(signature || '-')}</b> · demand.id = ${demandId}
+    </p>
+    <div id="reportLogContent" style="min-height:100px;"><div class="loading">加载中...</div></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('reportLogModal')">关闭</button>
+    </div>
+  `;
+  showModal('reportLogModal', html);
+  try {
+    const r = await fetch(`/api/demands/${demandId}/report-log?user_id=${currentUser.id}`);
+    const data = await r.json();
+    const content = document.getElementById('reportLogContent');
+    if (data.error) { content.innerHTML = `<div class="alert alert-error">${data.error}</div>`; return; }
+    if (!data.logs.length) { content.innerHTML = '<div class="empty">暂无修改历史</div>'; return; }
+    content.innerHTML = `
+      <div style="max-height:50vh;overflow-y:auto;">
+      <table class="list-table" style="font-size:12px;">
+        <thead>
+          <tr>
+            <th>时间</th><th>操作人</th><th>状态变动</th><th>失败原因</th><th>业务时间</th><th>来源</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.logs.map(l => {
+            const oldSt = l.old_status || 'pending';
+            const newSt = l.new_status;
+            const oldTag = statusBadge(oldSt);
+            const newTag = statusBadge(newSt);
+            return `
+              <tr>
+                <td><span style="font-size:11px;">${l.changed_at}</span></td>
+                <td>${escapeHtml(l.changed_by || '-')}</td>
+                <td>${oldTag} → ${newTag}</td>
+                <td>${l.failure_reason ? '<span style="color:#c53030;">' + escapeHtml(l.failure_reason) + '</span>' : '-'}</td>
+                <td><span style="font-size:11px;">${l.business_time || '-'}</span></td>
+                <td><span style="font-size:10px;color:#718096;">${escapeHtml(l.import_source || 'manual')}</span></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+      </div>
+    `;
+  } catch (e) {
+    const content = document.getElementById('reportLogContent');
+    if (content) content.innerHTML = `<div class="alert alert-error">加载失败：${e.message}</div>`;
+  }
+}
+function statusBadge(st) {
+  if (st === 'success') return '<span class="tag-ok">✓ 成功</span>';
+  if (st === 'failed') return '<span class="tag-warn">✗ 失败</span>';
+  if (st === 'in_progress') return '<span class="tag-pending">⏳ 进行中</span>';
+  return '<span class="tag-pending">待报备</span>';
+}
+
+// 批次状态统一翻译（4 个聚合值 + 1 个生命周期值 reporting）
+function formatBatchStatus(st) {
+  if (!st) return '<span class="tag-pending">-</span>';
+  const map = {
+    'reporting':         { label: '⏳ 报备中',         cls: 'tag-pending', style: 'background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;', tip: '批次已进入报备阶段' },
+    'processing':        { label: '⏳ 报备中',         cls: 'tag-pending', style: 'background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;', tip: '所有子需求都在报备中' },
+    'partial_processing':{ label: '⏳ 部分报备中',     cls: 'tag-pending', style: 'background:#ebf8ff;color:#2b6cb0;border:1px solid #90cdf4;', tip: '部分子需求已处理（成功/失败），部分仍在报备中' },
+    'partial_failed':    { label: '⚠️ 部分失败',     cls: 'tag-warn',    style: '',                                            tip: '有子需求报备失败' },
+    'reported':          { label: '✓ 报备完成',       cls: 'tag-ok',      style: '',                                            tip: '所有子需求报备成功' },
+    'submitted':         { label: '🕓 已提交',         cls: 'tag-pending', style: '',                                            tip: '批次已提交，待受理' },
+    'initial_checked':   { label: '🔍 初核通过',       cls: 'tag-pending', style: '',                                            tip: '初核已通过' },
+    'cancelled':         { label: '❌ 已作废',         cls: 'tag-warn',    style: '',                                            tip: '批次已作废' }
+  };
+  const m = map[st] || { label: st, cls: 'tag-pending', style: '', tip: st };
+  return `<span class="${m.cls}" style="${m.style}" title="${m.tip}">${m.label}</span>`;
+}
+
+// ========== v0.9 报备结果导入工具 ==========
+let _reportImportData = null;  // {headers, rows, fileName}
+
+function onReportImportFile(input) {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('reportImportHint').textContent = `已上传：${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type: 'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header: 1, defval: ''});
+      if (data.length < 2) { alert('Excel 至少需要表头+1 行数据'); return; }
+      const headers = data[0].map((h, i) => ({idx: i, name: String(h).trim() || `(列 ${i+1})`}));
+      const rows = data.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
+      _reportImportData = { headers, rows, fileName: file.name };
+      renderReportImportMapping(headers, rows);
+    } catch (err) {
+      alert('Excel 解析失败：' + err.message);
+    }
+    input.value = '';  // 允许重复上传同一文件
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// 关键字 → 字段名映射
+const _mappingKeywords = {
+  sub_port:        ['子端口号', '子端口', 'port', '端口号'],
+  carrier:         ['运营商', '运营商名称', 'carrier'],
+  signature:       ['客户签名', '签名', 'signature'],
+  result:          ['报备结果', '结果', '状态', 'result', 'status'],
+  failure_reason:  ['失败原因', '原因', 'reason'],
+  business_time:   ['报备时间', '完成时间', '生效时间', 'business_time', '完成日期'],
+  remark:          ['备注', 'remark', '说明']
+};
+function autoSuggestMapping(headers) {
+  const m = {};
+  for (const field in _mappingKeywords) {
+    const kws = _mappingKeywords[field];
+    let best = null, bestScore = 0;
+    for (const h of headers) {
+      const ln = (h.name || '').toLowerCase();
+      for (const k of kws) {
+        const kl = k.toLowerCase();
+        if (ln === kl) { best = h.idx; bestScore = 100; break; }  // 精确优先
+        if (ln.indexOf(kl) >= 0) {
+          const s = 50 - Math.abs(ln.length - kl.length);
+          if (s > bestScore) { best = h.idx; bestScore = s; }
+        }
+      }
+      if (bestScore === 100) break;
+    }
+    m[field] = best;  // 可能 null
+  }
+  return m;
+}
+
+function renderReportImportMapping(headers, rows) {
+  const suggested = autoSuggestMapping(headers);
+  const fields = [
+    {key:'sub_port',       label:'子端口',    required:true,  tip:'运营商下发的子端口号 (9-20 位数字)'},
+    {key:'carrier',        label:'运营商',    required:true,  tip:'移动/联通/电信'},
+    {key:'signature',      label:'签名',      required:true,  tip:'客户签名 (与需求行匹配)'},
+    {key:'result',         label:'报备结果',  required:true,  tip:'报备成功 / 报备失败'},
+    {key:'failure_reason', label:'失败原因',  required:false, tip:'【可选】独立「失败原因」列(如有)'},
+    {key:'business_time',  label:'报备时间',  required:false, tip:'【可选】业务时间(默认当前时间)'},
+    {key:'remark',         label:'备注',      required:false, tip:'【可选】失败原因可能在备注列'}
+  ];
+  const html = `
+    <div class="alert alert-info" style="margin-bottom:12px;">
+      📄 文件：<b>${escapeHtml(_reportImportData.fileName)}</b> · 共 <b>${rows.length}</b> 行数据 · ${headers.length} 列。<br>
+      💡 工具已自动建议列映射（关键字匹配），请确认/微调后再点「开始导入」。
+    </div>
+    <table class="list-table" style="font-size:12px;">
+      <thead><tr><th>字段</th><th>必填</th><th>映射到 Excel 的列</th><th>列名</th><th>说明</th></tr></thead>
+      <tbody>
+        ${fields.map(f => `
+          <tr>
+            <td><b>${f.label}</b></td>
+            <td>${f.required ? '<span style="color:#c53030;">*</span>' : '-'}</td>
+            <td>
+              <select id="rim_${f.key}" data-field="${f.key}" style="padding:4px 8px;border:1px solid #cbd5e0;border-radius:4px;">
+                <option value="-1">-- 不映射 --</option>
+                ${headers.map(h => `<option value="${h.idx}" ${h.idx===suggested[f.key]?'selected':''}>列 ${h.idx+1}: ${escapeHtml(h.name)}</option>`).join('')}
+              </select>
+            </td>
+            <td><span style="color:#718096;">${suggested[f.key]!=null ? headers[headers.findIndex(x=>x.idx===suggested[f.key])].name : '<i>未自动识别</i>'}</span></td>
+            <td><span style="color:#718096;font-size:11px;">${f.tip}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="margin:12px 0;padding:10px;background:#fffbea;border:1px solid #f6e05e;border-radius:4px;">
+      <div style="font-weight:bold;margin-bottom:6px;">⚙️ 导入选项</div>
+      <label style="display:block;margin:4px 0;font-size:12px;">
+        <input type="checkbox" id="rim_failure_from_remark" checked>
+        失败时自动从「备注」列取原因（运营商常见格式）
+      </label>
+      <label style="display:block;margin:4px 0;font-size:12px;">
+        <input type="checkbox" id="rim_bt_overwrite">
+        用「最后更新时间」列覆盖「报备时间」（不勾则用「报备时间」列作为业务时间）
+      </label>
+      <label style="display:block;margin:4px 0;font-size:12px;">
+        <input type="checkbox" id="rim_protect_manual">
+        保护人工结果（仅覆盖 pending/in_progress，勾上后已处理行会被跳过）
+      </label>
+    </div>
+    <div style="margin:12px 0;">
+      <button class="btn btn-primary" onclick="doReportImport()" style="font-size:14px;padding:8px 20px;">🚀 开始导入 ${rows.length} 行</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('reportImportContent').innerHTML='<div class=\\'empty\\' style=\\'padding:40px 20px;color:#a0aec0;\\'>未上传文件。点击「上传运营商 Excel」开始。</div>';document.getElementById('reportImportHint').textContent='未上传';" style="margin-left:8px;">重置</button>
+    </div>
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer;color:#4a5568;font-size:12px;">📄 预览前 5 行</summary>
+      <div style="overflow-x:auto;max-height:200px;overflow-y:auto;margin-top:8px;">
+      <table class="list-table" style="font-size:11px;">
+        <thead><tr>${headers.map(h => `<th>${escapeHtml(h.name)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.slice(0, 5).map(r => `<tr>${headers.map(h => `<td>${escapeHtml(String(r[h.idx] || ''))}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      </div>
+    </details>
+  `;
+  document.getElementById('reportImportContent').innerHTML = html;
+}
+
+async function doReportImport() {
+  if (!_reportImportData) { alert('请先上传 Excel'); return; }
+  if (!currentUser || (currentUser.dept !== 'baobei' && currentUser.role !== 'E_admin')) { alert('仅报备部 / 管理员可操作'); return; }
+  // 收集映射
+  const mapping = {};
+  const requiredFields = ['sub_port', 'carrier', 'signature', 'result'];
+  const fieldLabels = {sub_port:'子端口', carrier:'运营商', signature:'签名', result:'报备结果'};
+  for (const f of requiredFields) {
+    const sel = document.getElementById('rim_' + f);
+    const v = parseInt(sel.value);
+    if (isNaN(v) || v < 0) { alert(`必填字段「${fieldLabels[f]}」未映射`); return; }
+    mapping[f] = v;
+  }
+  for (const f of ['failure_reason', 'business_time', 'remark']) {
+    const sel = document.getElementById('rim_' + f);
+    if (sel) {
+      const v = parseInt(sel.value);
+      if (!isNaN(v) && v >= 0) mapping[f] = v;
+    }
+  }
+  // 构造 rows
+  const rows = _reportImportData.rows.map(r => {
+    const o = {};
+    for (const f in mapping) o[f] = r[mapping[f]];
+    return o;
+  });
+  const failureFromRemark = document.getElementById('rim_failure_from_remark').checked;
+  const btOverwrite = document.getElementById('rim_bt_overwrite').checked;
+  const protectManual = document.getElementById('rim_protect_manual').checked;
+  const source = 'tool:import_' + new Date().toISOString().slice(0,19).replace(/[:T-]/g, '');
+  const content = document.getElementById('reportImportContent');
+  content.innerHTML = `<div class="loading">正在导入 ${rows.length} 行... 请耐心等待 ⏳</div>`;
+  try {
+    const resp = await fetch(`${API}/demands/import-report`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        user_id: currentUser.id,
+        source,
+        column_mapping: mapping,
+        failure_reason_from_remark: failureFromRemark,
+        business_time_overwrite: btOverwrite,
+        protect_manual_results: protectManual,
+        rows
+      })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showReportImportResult(data, rows.length);
+    } else {
+      content.innerHTML = `<div class="alert alert-error">❌ 导入失败：${data.error || '未知错误'}<br><button class="btn btn-secondary btn-sm" onclick="renderReportImportMapping(_reportImportData.headers, _reportImportData.rows)" style="margin-top:8px;">← 返回</button></div>`;
+    }
+  } catch (e) {
+    content.innerHTML = `<div class="alert alert-error">❌ 网络错误：${e.message}<br><button class="btn btn-secondary btn-sm" onclick="renderReportImportMapping(_reportImportData.headers, _reportImportData.rows)" style="margin-top:8px;">← 返回</button></div>`;
+  }
+}
+
+// v0.9.3 导入后同步：重拉缓存 + 自动重画当前打开的页面
+async function _syncAfterImport(data) {
+  try {
+    // Step 1: 重拉批次列表（可能 batch.status 已变化）
+    if (typeof allBatchesBuffer !== 'undefined' && allBatchesBuffer) {
+      const arr = await fetch(`${API}/batches?user_id=${currentUser.id}`).then(r => r.json()).catch(()=>null);
+      if (Array.isArray(arr)) {
+        allBatchesBuffer.length = 0;
+        allBatchesBuffer.push(...arr);
+      }
+    }
+    // Step 2: 重拉全部明细（report_status 已变化）
+    if (typeof allDemandsBuffer !== 'undefined' && allDemandsBuffer && allDemandsBuffer.length) {
+      const arr = await fetch(`${API}/demands`).then(r => r.json()).catch(()=>null);
+      if (Array.isArray(arr)) {
+        allDemandsBuffer.length = 0;
+        allDemandsBuffer.push(...arr);
+      }
+    }
+    // Step 3: 检测当前打开的页面，自动重画
+    const batchesPage = document.getElementById('batchesPage');
+    const toolsPage = document.getElementById('toolsPage');
+    if (batchesPage && batchesPage.style.display !== 'none') {
+      // 在批次页：判断是「批次列表」还是「全部明细」子视图
+      const allDemandsContent = document.getElementById('allDemandsContent');
+      if (allDemandsContent && allDemandsContent.style.display !== 'none') {
+        loadAllDemands();  // 全部明细
+      } else {
+        loadBatches();      // 批次列表
+      }
+    }
+    // Step 4: 详情模态框是打开的，静默重拉
+    if (typeof _currentBatchNo !== 'undefined' && _currentBatchNo) {
+      showBatchDetail(_currentBatchNo);
+    }
+    console.log('[导入同步] 完成');
+  } catch (e) {
+    console.warn('导入后自动同步失败：', e);
+  }
+}
+
+function showReportImportResult(data, totalRows) {
+  const s = data.success, u = data.unmatched, sk = data.skipped, total = data.total;
+  const successPct = total > 0 ? (s/total*100).toFixed(1) : 0;
+  // v0.9.3 导入完成后：重拉缓存 + 自动重画当前打开的页面
+  _syncAfterImport(data);
+  const html = `
+    <div class="alert" style="background:#f0fff4;border:1px solid #9ae6b4;padding:12px;margin-bottom:12px;">
+      <h3 style="margin:0 0 8px 0;color:#22543d;">✅ 导入完成</h3>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:14px;">
+        <span>📊 总计：<b>${total}</b> 行</span>
+        <span style="color:#22543d;">🟢 成功：<b>${s}</b> (${successPct}%)</span>
+        <span style="color:#c53030;">🔴 未匹配：<b>${u}</b></span>
+        <span style="color:#718096;">⚪ 跳过：<b>${sk}</b></span>
+      </div>
+      <div style="font-size:12px;color:#4a5568;margin-top:6px;">影响批次：${data.affected_batches.length > 0 ? data.affected_batches.map(b => '<code style="background:#e2e8f0;padding:1px 5px;border-radius:3px;">' + b + '</code>').join(' ') : '无'}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="downloadReportImportDetail('success', ${JSON.stringify(data.details).replace(/"/g, '&quot;')})">📥 成功明细</button>
+      <button class="btn btn-secondary btn-sm" onclick="downloadReportImportDetail('unmatched', ${JSON.stringify(data.details).replace(/"/g, '&quot;')})">📥 未匹配明细</button>
+      <button class="btn btn-secondary btn-sm" onclick="downloadReportImportDetail('skipped', ${JSON.stringify(data.details).replace(/"/g, '&quot;')})">📥 跳过明细</button>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('batches');switchBatchesView('all');loadAllDemands();">🔄 刷新「全部明细」查看</button>
+      <span style="font-size:11px;color:#718096;margin-left:4px;">（已自动同步，<a href="javascript:void(0)" onclick="switchTab('batches');switchBatchesView('list');loadBatches();" style="color:#3182ce;">切到「批次列表」</a>）</span>
+      <button class="btn btn-secondary btn-sm" onclick="_reportImportData=null;document.getElementById('reportImportHint').textContent='未上传';document.getElementById('reportImportContent').innerHTML='<div class=\\'empty\\' style=\\'padding:40px 20px;color:#a0aec0;\\'>未上传文件。点击「上传运营商 Excel」开始。</div>';" style="margin-left:auto;">🔄 重新导入新文件</button>
+    </div>
+    <h4 style="font-size:13px;color:#4a5568;margin:8px 0;">📋 明细预览（前 50 条）</h4>
+    <div style="overflow-x:auto;max-height:50vh;overflow-y:auto;">
+    <table class="list-table" style="font-size:11px;">
+      <thead><tr><th>行号</th><th>子端口</th><th>签名</th><th>运营商</th><th>状态</th><th>结果</th><th>详情</th></tr></thead>
+      <tbody>
+        ${data.details.slice(0, 50).map(d => `
+          <tr>
+            <td>${d.row_no || '-'}</td>
+            <td><code style="font-size:10px;">${escapeHtml(d.sub_port || '-')}</code></td>
+            <td>${escapeHtml(d.signature || '-')}</td>
+            <td>${escapeHtml(d.carrier || '-')}</td>
+            <td>${d.status === 'success' ? '<span class="tag-ok">✓ 成功</span>' : d.status === 'unmatched' ? '<span class="tag-warn">未匹配</span>' : '<span class="tag-pending">跳过</span>'}</td>
+            <td>${d.result ? (d.result === 'success' ? '🟢成功' : d.result === 'failed' ? '🔴失败' : '🟠进行中') : '-'}</td>
+            <td style="font-size:10px;color:#718096;">${escapeHtml(d.match_type || d.reason || d.error || '')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    </div>
+  `;
+  document.getElementById('reportImportContent').innerHTML = html;
+}
+
+function downloadReportImportDetail(filter, detailsJson) {
+  // 过滤
+  const details = JSON.parse(detailsJson || '[]');
+  const filtered = details.filter(d => d.status === filter);
+  if (!filtered.length) { alert(`没有「${filter}」的记录`); return; }
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  const rows = filtered.map(d => ({
+    '行号': d.row_no,
+    '子端口': d.sub_port || '',
+    '运营商': d.carrier || '',
+    '签名': d.signature || '',
+    '状态': d.status,
+    '结果': d.result || '',
+    'demand_id': d.demand_id || '',
+    '批次号': d.batch_no || '',
+    '匹配类型': d.match_type || '',
+    '原因/错误': d.reason || d.error || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, filter);
+  const ts = new Date().toISOString().slice(0,16).replace(/[:T-]/g, '');
+  XLSX.writeFile(wb, `报备导入_${filter}_${ts}.xlsx`);
+}
+
+function downloadReportImportTemplate() {
+  if (typeof XLSX === 'undefined') { alert('XLSX 库未加载'); return; }
+  // v0.9.1 简化示例模板：只展示 5 个关键列
+  // 关键 4 列必填：子端口、运营商、签名、报备结果
+  // 可选 1 列：失败原因（不填则失败行走“备注列勾选”逻辑）
+  const sample = [
+    ['子端口号',     '运营商', '客户签名',   '报备结果',   '失败原因'],
+    ['10684336137302', '电信', '示例签名',   '报备成功',   ''],
+    ['10684336137301', '电信', '示例签名2',  '报备失败',   '失败原因示例']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sample);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '子端口生效明细');
+  XLSX.writeFile(wb, '报备结果导入_示例模板.xlsx');
+}
+</script>
+</body>
+</html>
